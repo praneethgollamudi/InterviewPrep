@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TPM AI Mock Interviewer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;--primary-light:#dbeafe;
+  --success:#059669;--success-light:#d1fae5;
+  --warning:#d97706;--warning-light:#fef3c7;
+  --danger:#dc2626;--danger-light:#fee2e2;
+  --bg:#f0f4f8;--card:#fff;--text:#1e293b;--muted:#64748b;--border:#e2e8f0;
+  --radius:12px;--shadow:0 2px 12px rgba(0,0,0,.08);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* ── Layout ── */
+.screen{display:none;min-height:100vh;padding:24px 16px}
+.screen.active{display:block}
+.container{max-width:820px;margin:auto}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:16px}
+.card-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.card-title{font-size:1.1rem;font-weight:700;color:var(--text)}
+
+/* ── Buttons ── */
+btn,.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-secondary{background:#f1f5f9;color:var(--text)}
+.btn-secondary:hover{background:#e2e8f0}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-lg{padding:13px 28px;font-size:1rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── Form elements ── */
+input[type=text],input[type=password],select,textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;
+  font-size:.9rem;font-family:inherit;color:var(--text);background:var(--card);transition:border .15s;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+textarea{height:150px;resize:vertical}
+.input-wrap{position:relative}
+.input-wrap .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:1.1rem;background:none;border:none}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.badge-blue{background:var(--primary-light);color:var(--primary)}
+.badge-green{background:var(--success-light);color:var(--success)}
+.badge-yellow{background:var(--warning-light);color:var(--warning)}
+.badge-red{background:var(--danger-light);color:var(--danger)}
+
+/* ── Progress bar ── */
+.progress-bar-outer{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:8px 0}
+.progress-bar-inner{height:100%;background:var(--primary);border-radius:3px;transition:width .4s ease}
+
+/* ── Score bar ── */
+.score-bar{margin:6px 0}
+.score-bar-label{display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px}
+.score-bar-outer{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+
+/* ── Timer ── */
+#timer{font-size:1.3rem;font-weight:700;color:var(--primary);min-width:60px;text-align:center;padding:4px 12px;border-radius:8px;background:var(--primary-light)}
+#timer.warn{color:var(--warning);background:var(--warning-light)}
+#timer.danger{color:var(--danger);background:var(--danger-light)}
+
+/* ── Interview header ── */
+.interview-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.q-counter{font-size:.9rem;font-weight:600;color:var(--muted)}
+
+/* ── Char count ── */
+.char-count{text-align:right;font-size:.8rem;color:var(--muted);margin-top:4px}
+
+/* ── Tip box ── */
+.tip-box{background:#f8fafc;border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:12px 14px;font-size:.85rem;line-height:1.6;color:var(--muted)}
+.tip-box summary{cursor:pointer;font-weight:600;color:var(--primary);list-style:none}
+.tip-box summary::before{content:"▶ "}
+details[open] summary::before{content:"▼ "}
+
+/* ── Feedback panel ── */
+.feedback-panel{border-radius:var(--radius);overflow:hidden}
+.feedback-header{padding:16px 20px;font-weight:700;font-size:1rem}
+.feedback-body{padding:16px 20px}
+.score-circle{font-size:2.8rem;font-weight:800;text-align:center;margin:8px 0}
+.score-label{text-align:center;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+
+.bullet-list{list-style:none;display:flex;flex-direction:column;gap:5px}
+.bullet-list li{padding:6px 10px;border-radius:6px;font-size:.875rem;line-height:1.4}
+.bullet-list.pos li{background:var(--success-light);color:#065f46;padding-left:28px;position:relative}
+.bullet-list.pos li::before{content:"✓";position:absolute;left:8px;font-weight:700}
+.bullet-list.imp li{background:var(--warning-light);color:#78350f;padding-left:28px;position:relative}
+.bullet-list.imp li::before{content:"→";position:absolute;left:8px;font-weight:700}
+
+.follow-up-box{background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:14px;margin-top:10px}
+.follow-up-box .label{font-size:.78rem;font-weight:700;color:#0284c7;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+
+/* ── Setup screen ── */
+.setup-hero{text-align:center;padding:32px 0 20px}
+.setup-hero h1{font-size:2rem;font-weight:800;margin-bottom:8px}
+.setup-hero p{color:var(--muted);font-size:1rem;max-width:500px;margin:auto}
+.option-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:6px}
+.option-btn{border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;transition:all .15s;background:var(--card)}
+.option-btn:hover{border-color:var(--primary);background:var(--primary-light)}
+.option-btn.selected{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.option-btn .icon{font-size:1.4rem;margin-bottom:4px}
+.option-btn .name{font-size:.85rem;font-weight:700}
+.option-btn .desc{font-size:.75rem;color:var(--muted);margin-top:2px}
+.option-btn.selected .desc{color:var(--primary)}
+.divider{border:none;border-top:1px solid var(--border);margin:8px 0}
+
+/* ── Report ── */
+.report-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:600px){.report-grid{grid-template-columns:1fr}}
+.big-score{font-size:4rem;font-weight:800;line-height:1}
+.grade-badge{font-size:1.4rem;font-weight:800;padding:6px 16px;border-radius:8px;display:inline-block;margin-top:8px}
+.q-item{border-left:3px solid var(--border);padding:10px 14px;margin-bottom:10px;border-radius:0 8px 8px 0}
+.q-item.high{border-color:var(--success)}
+.q-item.mid{border-color:var(--warning)}
+.q-item.low{border-color:var(--danger)}
+canvas{max-width:100%!important}
+
+/* ── Spinner ── */
+.spinner{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Notification ── */
+#notif{position:fixed;top:16px;right:16px;padding:12px 18px;border-radius:10px;font-size:.875rem;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:999;display:none;max-width:320px}
+#notif.error{background:var(--danger);color:#fff}
+#notif.info{background:var(--primary);color:#fff}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .setup-hero h1{font-size:1.5rem}
+  .btn-lg{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<div id="notif"></div>
+
+<!-- ═══════════════ SCREEN 1: SETUP ═══════════════ -->
+<div class="screen active" id="screen-setup">
+<div class="container">
+  <div class="setup-hero">
+    <div style="font-size:2.5rem;margin-bottom:12px">🤖</div>
+    <h1>TPM AI Mock Interviewer</h1>
+    <p>Rigorous AI-powered interview practice with real-time evaluation across 6 TPM competencies</p>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span style="font-size:1.2rem">👤</span><span class="card-title">Your Details</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label>Your Name</label>
+        <input type="text" id="userName" placeholder="e.g. Alex Johnson" />
+      </div>
+      <div>
+        <label>Target Role</label>
+        <select id="targetRole">
+          <option value="TPM">Technical Program Manager</option>
+          <option value="Sr TPM">Senior TPM</option>
+          <option value="Staff TPM">Staff / Principal TPM</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Anthropic API Key <span style="color:var(--muted);font-weight:400">(used only in your browser)</span></label>
+      <div class="input-wrap">
+        <input type="password" id="apiKey" placeholder="sk-ant-..." />
+        <button class="eye" onclick="toggleKey()" id="eyeBtn">👁</button>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:4px">Your key is never stored or sent to any server other than Anthropic's API.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span style="font-size:1.2rem">🎯</span><span class="card-title">Interview Focus</span></div>
+    <label>Question Categories</label>
+    <div class="option-grid" id="modeGrid">
+      <div class="option-btn selected" data-mode="all" onclick="selectMode(this)">
+        <div class="icon">🎲</div><div class="name">All Types</div><div class="desc">Full breadth</div>
+      </div>
+      <div class="option-btn" data-mode="behavioral" onclick="selectMode(this)">
+        <div class="icon">🧠</div><div class="name">Behavioral</div><div class="desc">STAR stories</div>
+      </div>
+      <div class="option-btn" data-mode="situational" onclick="selectMode(this)">
+        <div class="icon">⚡</div><div class="name">Situational</div><div class="desc">Problem-solving</div>
+      </div>
+      <div class="option-btn" data-mode="technical" onclick="selectMode(this)">
+        <div class="icon">⚙️</div><div class="name">Technical</div><div class="desc">TPM depth</div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <label>Company Focus</label>
+      <div class="option-grid" id="companyGrid">
+        <div class="option-btn selected" data-company="DE Shaw" onclick="selectCompany(this)">
+          <div class="icon">🏦</div><div class="name">DE Shaw</div><div class="desc">Quant / GenAI</div>
+        </div>
+        <div class="option-btn" data-company="Big Tech" onclick="selectCompany(this)">
+          <div class="icon">💻</div><div class="name">Big Tech</div><div class="desc">FAANG style</div>
+        </div>
+        <div class="option-btn" data-company="General" onclick="selectCompany(this)">
+          <div class="icon">🌐</div><div class="name">General</div><div class="desc">All industries</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <label>Number of Questions</label>
+      <select id="numQ">
+        <option value="4">4 questions (Quick — ~20 min)</option>
+        <option value="6" selected>6 questions (Standard — ~35 min)</option>
+        <option value="10">10 questions (Deep — ~60 min)</option>
+      </select>
+    </div>
+    <div style="margin-top:14px">
+      <label>Time Limit per Question</label>
+      <select id="timeLimit">
+        <option value="120">2 minutes (Challenging)</option>
+        <option value="180" selected>3 minutes (Standard)</option>
+        <option value="300">5 minutes (Comfortable)</option>
+        <option value="0">No timer</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:8px">
+    <button class="btn btn-primary btn-lg" onclick="startInterview()">Start Interview →</button>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ SCREEN 2: INTERVIEW ═══════════════ -->
+<div class="screen" id="screen-interview">
+<div class="container">
+
+  <div class="card" style="padding:14px 20px">
+    <div class="interview-header">
+      <div>
+        <div class="q-counter" id="qCounter">Question 1 of 6</div>
+        <div class="progress-bar-outer" style="width:220px">
+          <div class="progress-bar-inner" id="progressBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="categoryBadge" class="badge badge-blue">Behavioral</span>
+        <div id="timer">3:00</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="questionCard">
+    <div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px" id="qCategory">Behavioral</div>
+    <div style="font-size:1.1rem;font-weight:600;line-height:1.5" id="questionText"></div>
+    <details class="tip-box" style="margin-top:16px">
+      <summary>Interview Tips</summary>
+      <div id="tipContent" style="margin-top:8px"></div>
+    </details>
+  </div>
+
+  <div class="card" id="answerCard">
+    <label>Your Answer</label>
+    <textarea id="answerInput" placeholder="Structure your answer with: Situation → Task → Action → Result. Include metrics, stakeholder impact, and what you'd do differently..." oninput="updateCharCount()"></textarea>
+    <div class="char-count"><span id="charCount">0</span> characters · <span id="wordCount">0</span> words</div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()">
+        <span id="submitLabel">Submit Answer</span>
+      </button>
+      <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+    </div>
+  </div>
+
+  <!-- Feedback panel (shown after submit) -->
+  <div class="card" id="feedbackCard" style="display:none">
+    <div class="card-header"><span style="font-size:1.2rem">📊</span><span class="card-title">AI Evaluation</span></div>
+
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;margin-bottom:16px">
+      <div style="text-align:center;min-width:110px">
+        <div class="score-circle" id="fbScore">–</div>
+        <div class="score-label" id="fbGrade"></div>
+        <div id="fbScoreBadge"></div>
+      </div>
+      <div id="dimensionBars"></div>
+    </div>
+
+    <hr class="divider">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:14px">
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--success);text-transform:uppercase;margin-bottom:7px">✓ Strengths</div>
+        <ul class="bullet-list pos" id="fbStrengths"></ul>
+      </div>
+      <div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--warning);text-transform:uppercase;margin-bottom:7px">→ Improve</div>
+        <ul class="bullet-list imp" id="fbImprovements"></ul>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;font-size:.9rem;line-height:1.6;color:var(--text);background:#f8fafc;border-radius:8px;padding:12px" id="fbSummary"></div>
+
+    <div class="follow-up-box" id="fbFollowUp" style="display:none">
+      <div class="label">Follow-up Challenge</div>
+      <div id="fbFollowUpText" style="font-size:.9rem;line-height:1.5;color:var(--text)"></div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Next Question →</button>
+      <button class="btn btn-secondary" onclick="toggleAnswerView()">View My Answer</button>
+    </div>
+  </div>
+
+  <!-- Original answer peek -->
+  <div class="card" id="answerPeek" style="display:none">
+    <div style="font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px">YOUR ANSWER</div>
+    <div id="answerPeekText" style="font-size:.875rem;line-height:1.6;white-space:pre-wrap;color:var(--text)"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════ SCREEN 3: REPORT ═══════════════ -->
+<div class="screen" id="screen-report">
+<div class="container">
+
+  <div class="card" style="text-align:center;padding:32px">
+    <div style="font-size:2rem;margin-bottom:8px">🎯</div>
+    <div style="font-size:1.1rem;font-weight:600;color:var(--muted);margin-bottom:8px">Interview Complete</div>
+    <div class="big-score" id="finalScore">–</div>
+    <div style="color:var(--muted);font-size:.9rem;margin-top:4px">/ 100 overall score</div>
+    <div id="finalGrade" class="grade-badge" style="margin-top:12px"></div>
+    <div id="finalVerdict" style="margin-top:14px;font-size:.95rem;line-height:1.6;max-width:500px;margin-left:auto;margin-right:auto;color:var(--text)"></div>
+  </div>
+
+  <div class="report-grid">
+    <div class="card">
+      <div class="card-header"><span style="font-size:1.1rem">🕸</span><span class="card-title">Competency Radar</span></div>
+      <canvas id="radarChart" height="280"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header"><span style="font-size:1.1rem">📈</span><span class="card-title">Dimension Scores</span></div>
+      <div id="dimensionReport"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span style="font-size:1.1rem">📋</span><span class="card-title">Question Breakdown</span></div>
+    <div id="questionBreakdown"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span style="font-size:1.1rem">💡</span><span class="card-title">Top Recommendations</span></div>
+    <ul class="bullet-list imp" id="topRecommendations"></ul>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;justify-content:center">
+    <button class="btn btn-primary btn-lg" onclick="restartInterview()">Start New Interview</button>
+    <button class="btn btn-secondary btn-lg" onclick="exportTranscript()">Export Transcript</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══════════════════ QUESTION BANK ═══════════════════
+const QUESTIONS = {
+  behavioral: [
+    {q:"Tell me about a complex program you managed across multiple teams with conflicting priorities. How did you ensure alignment?",tips:"Use STAR. Mention: stakeholder mapping, escalation path, how you resolved the conflict, outcome metrics.",category:"Behavioral"},
+    {q:"Describe a time you influenced a major technical decision without having direct authority. What was your approach?",tips:"Focus on: data-driven persuasion, relationship building, executive buy-in, and the result.",category:"Behavioral"},
+    {q:"Tell me about a project that failed or significantly missed its targets. What did you learn and how did you apply it?",tips:"Show self-awareness. Cover: root cause, your specific role, concrete changes you made afterward.",category:"Behavioral"},
+    {q:"Give an example of when you had to deliver very bad news to an executive or key stakeholder. How did you handle it?",tips:"Cover: timing, framing, proposed solutions alongside the problem, managing their reaction.",category:"Behavioral"},
+    {q:"Describe a situation where you had to onboard and align a skeptical senior engineering leader on a new initiative.",tips:"Show: empathy, technical credibility, iterative alignment, and how you measured their buy-in.",category:"Behavioral"},
+    {q:"Tell me about a time you had to make a difficult trade-off between quality, speed, and scope. What framework did you use?",tips:"Show a structured decision process, stakeholder involvement, and retrospective on the outcome.",category:"Behavioral"},
+  ],
+  situational: [
+    {q:"Your firm-wide GenAI platform was supposed to hit 60% adoption in 6 months. You're at 17% with 2 months left. Walk me through your complete diagnosis and recovery plan.",tips:"Cover: data gathering, hypothesis tree (awareness vs. access vs. value vs. friction), quick wins vs. structural fixes, executive communication.",category:"Situational"},
+    {q:"Security blocks your AI feature launch 48 hours before go-live due to data leakage concerns. What do you do?",tips:"Cover: immediate triage, stakeholder notification, risk vs. delay assessment, alternative launch paths, post-incident process.",category:"Situational"},
+    {q:"You have 3 critical AI projects competing for the same 2 senior engineers for the next quarter. How do you prioritize?",tips:"Use a framework (RICE, ICE, or custom). Cover: business value, dependencies, opportunity cost, exec alignment.",category:"Situational"},
+    {q:"A critical third-party ML vendor suddenly doubles their pricing the week before contract renewal. What's your strategy?",tips:"Cover: business case analysis, internal build vs. buy, negotiation leverage, contingency options, timeline.",category:"Situational"},
+    {q:"Your team's roadmap is 70% tech debt and 30% new features. Business stakeholders are angry. How do you manage this?",tips:"Show: quantifying tech debt cost (reliability, velocity), translating to business impact, negotiation, phased plan.",category:"Situational"},
+    {q:"A data scientist on your team is consistently brilliant but misses deadlines and creates communication friction. What do you do?",tips:"Cover: root cause discovery (workload, clarity, personal?), direct conversation, structural support, escalation path.",category:"Situational"},
+  ],
+  technical: [
+    {q:"How would you design the rollout strategy for a firm-wide GenAI coding assistant (like GitHub Copilot) to 2,000 engineers?",tips:"Cover: phased rollout, success metrics, feedback loops, security review, training plan, exec dashboards.",category:"Technical"},
+    {q:"Explain the key differences between an A/B test and a phased rollout for an ML feature. When would you use each?",tips:"Show technical depth: statistical significance, feature flags, canary releases, rollback triggers.",category:"Technical"},
+    {q:"How would you measure the ROI of an internal LLM-powered search tool used by 500 analysts?",tips:"Cover: leading vs. lagging metrics, productivity proxy, baseline establishment, A/B comparison, qualitative signals.",category:"Technical"},
+    {q:"A new ML model goes into production and latency spikes 3x. You're the TPM on call. Walk me through your response.",tips:"Cover: immediate mitigation, rollback decision criteria, RCA process, stakeholder updates, post-mortem ownership.",category:"Technical"},
+    {q:"How would you structure the technical roadmap for migrating a legacy financial reporting system to a modern data platform?",tips:"Cover: discovery phase, dependency mapping, parallel run strategy, data validation, risk register, phasing.",category:"Technical"},
+    {q:"Walk me through how you'd set up OKRs for a platform engineering team building internal developer tooling.",tips:"Show: outcome vs. output distinction, lagging vs. leading indicators, DORA metrics, stakeholder alignment.",category:"Technical"},
+  ]
+};
+
+// DE Shaw specific flavor additions
+const DESHAW_CONTEXT = "DE Shaw is a quantitative investment firm that heavily invests in AI and machine learning. They value rigorous analytical thinking, data-driven decisions, and the ability to manage complex technical programs in a fast-paced, high-stakes financial environment.";
+const BIGTECH_CONTEXT = "Big Tech companies value leadership principles, system-scale thinking, data-driven decision making, and the ability to influence cross-functional teams at scale.";
+
+// ═══════════════════ APP STATE ═══════════════════
+const state = {
+  apiKey: '', userName: '', targetRole: 'TPM',
+  mode: 'all', company: 'DE Shaw',
+  numQ: 6, timeLimit: 180,
+  questions: [], currentIdx: 0,
+  answers: [], feedbacks: [], scores: [],
+  timerInterval: null, timeLeft: 180,
+  conversationHistory: []
+};
+
+// ═══════════════════ SETUP ═══════════════════
+function selectMode(el){
+  document.querySelectorAll('#modeGrid .option-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  state.mode = el.dataset.mode;
+}
+function selectCompany(el){
+  document.querySelectorAll('#companyGrid .option-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+  state.company = el.dataset.company;
+}
+function toggleKey(){
+  const inp = document.getElementById('apiKey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function startInterview(){
+  state.apiKey = document.getElementById('apiKey').value.trim();
+  state.userName = document.getElementById('userName').value.trim() || 'Candidate';
+  state.targetRole = document.getElementById('targetRole').value;
+  state.numQ = parseInt(document.getElementById('numQ').value);
+  state.timeLimit = parseInt(document.getElementById('timeLimit').value);
+
+  if(!state.apiKey){showNotif('Please enter your Anthropic API key to continue.','error');return;}
+  if(!state.apiKey.startsWith('sk-ant-')){showNotif('API key should start with sk-ant-','error');return;}
+
+  buildQuestionSet();
+  state.currentIdx = 0;
+  state.answers = [];
+  state.feedbacks = [];
+  state.scores = [];
+  state.conversationHistory = [];
+
+  showScreen('screen-interview');
+  renderQuestion();
+}
+
+function buildQuestionSet(){
+  let pool = [];
+  if(state.mode === 'all'){
+    pool = [...QUESTIONS.behavioral, ...QUESTIONS.situational, ...QUESTIONS.technical];
+  } else {
+    pool = [...QUESTIONS[state.mode]];
+  }
+  // Shuffle
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+  state.questions = pool.slice(0, state.numQ);
+}
+
+// ═══════════════════ INTERVIEW ═══════════════════
+function renderQuestion(){
+  const q = state.questions[state.currentIdx];
+  const total = state.questions.length;
+  const idx = state.currentIdx;
+
+  document.getElementById('qCounter').textContent = `Question ${idx+1} of ${total}`;
+  document.getElementById('progressBar').style.width = `${(idx/total)*100}%`;
+
+  const catMap = {Behavioral:'badge-blue',Situational:'badge-yellow',Technical:'badge-green'};
+  const badge = document.getElementById('categoryBadge');
+  badge.textContent = q.category;
+  badge.className = `badge ${catMap[q.category]||'badge-blue'}`;
+  document.getElementById('qCategory').textContent = q.category.toUpperCase();
+  document.getElementById('questionText').textContent = q.q;
+  document.getElementById('tipContent').innerHTML = q.tips;
+
+  document.getElementById('answerInput').value = '';
+  document.getElementById('charCount').textContent = '0';
+  document.getElementById('wordCount').textContent = '0';
+  document.getElementById('feedbackCard').style.display = 'none';
+  document.getElementById('answerPeek').style.display = 'none';
+  document.getElementById('answerCard').style.display = 'block';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitLabel').textContent = 'Submit Answer';
+
+  startTimer();
+}
+
+function startTimer(){
+  stopTimer();
+  if(state.timeLimit === 0){document.getElementById('timer').textContent='∞';return;}
+  state.timeLeft = state.timeLimit;
+  updateTimerDisplay();
+  state.timerInterval = setInterval(()=>{
+    state.timeLeft--;
+    updateTimerDisplay();
+    if(state.timeLeft<=0){stopTimer();autoSubmit();}
+  },1000);
+}
+function stopTimer(){
+  if(state.timerInterval){clearInterval(state.timerInterval);state.timerInterval=null;}
+}
+function updateTimerDisplay(){
+  const m=Math.floor(state.timeLeft/60), s=state.timeLeft%60;
+  const el=document.getElementById('timer');
+  el.textContent=`${m}:${s.toString().padStart(2,'0')}`;
+  el.className=state.timeLeft<=30?'danger':state.timeLeft<=60?'warn':'';
+}
+function autoSubmit(){
+  const ans = document.getElementById('answerInput').value.trim();
+  if(ans.length > 20) submitAnswer();
+}
+
+function updateCharCount(){
+  const v = document.getElementById('answerInput').value;
+  document.getElementById('charCount').textContent = v.length;
+  document.getElementById('wordCount').textContent = v.trim() ? v.trim().split(/\s+/).length : 0;
+}
+
+async function submitAnswer(){
+  const ans = document.getElementById('answerInput').value.trim();
+  if(ans.length < 20){showNotif('Please write a more complete answer before submitting.','error');return;}
+
+  stopTimer();
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitLabel').innerHTML = '<span class="spinner"></span> Evaluating...';
+
+  const q = state.questions[state.currentIdx];
+  state.answers.push(ans);
+
+  try {
+    const feedback = await evaluateAnswer(q.q, q.category, ans);
+    state.feedbacks.push(feedback);
+    state.scores.push(feedback.overall_score);
+    renderFeedback(feedback, q);
+  } catch(err){
+    console.error(err);
+    showNotif('API error: ' + err.message, 'error');
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitLabel').textContent = 'Submit Answer';
+  }
+}
+
+function skipQuestion(){
+  stopTimer();
+  state.answers.push('[Skipped]');
+  state.feedbacks.push(null);
+  state.scores.push(0);
+  nextQuestion();
+}
+
+function nextQuestion(){
+  state.currentIdx++;
+  if(state.currentIdx >= state.questions.length){
+    showReport();
+  } else {
+    renderQuestion();
+  }
+}
+
+function toggleAnswerView(){
+  const peek = document.getElementById('answerPeek');
+  if(peek.style.display==='none'){
+    document.getElementById('answerPeekText').textContent = state.answers[state.currentIdx] || '';
+    peek.style.display='block';
+  } else {
+    peek.style.display='none';
+  }
+}
+
+// ═══════════════════ ANTHROPIC API ═══════════════════
+async function evaluateAnswer(question, category, answer){
+  const companyCtx = state.company==='DE Shaw'?DESHAW_CONTEXT:state.company==='Big Tech'?BIGTECH_CONTEXT:'';
+
+  const systemPrompt = `You are a senior ${state.company} interviewer evaluating a ${state.targetRole} candidate named ${state.userName}. ${companyCtx}
+
+Evaluate the candidate's interview answer rigorously. Return ONLY valid JSON (no markdown, no extra text) with exactly this structure:
+{
+  "overall_score": <0-100 integer>,
+  "dimensions": {
+    "structure": <0-100>,
+    "stakeholder_mgmt": <0-100>,
+    "metrics_data": <0-100>,
+    "risk_prioritization": <0-100>,
+    "communication": <0-100>,
+    "technical_depth": <0-100>
+  },
+  "strengths": [<2-3 specific, concrete strings>],
+  "improvements": [<2-3 specific, actionable strings>],
+  "brief_feedback": "<2-3 sentence narrative evaluation>",
+  "follow_up_question": "<a harder follow-up challenge question>"
+}
+
+Scoring rubric:
+- structure (0-100): STAR/SOAR method, logical flow, clear situation and outcome
+- stakeholder_mgmt (0-100): identifies stakeholders, handles conflict, communicates upward
+- metrics_data (0-100): uses specific numbers, defines success criteria, data-driven decisions
+- risk_prioritization (0-100): identifies risks, trade-offs, prioritization framework used
+- communication (0-100): clarity, executive presence, conciseness, narrative quality
+- technical_depth (0-100): TPM-relevant technical understanding, system thinking
+
+Be strict but fair. A score of 70+ means genuinely strong. Most real candidates score 40-65.`;
+
+  const userMsg = `Interview Question (${category}): ${question}
+
+Candidate's Answer:
+${answer}`;
+
+  // Add to conversation history for context
+  state.conversationHistory.push({role:'user', content: userMsg});
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': state.apiKey,
+      'anthropic-version':'2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-8',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: state.conversationHistory
+    })
+  });
+
+  if(!resp.ok){
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+  }
+
+  const data = await resp.json();
+  const raw = data.content[0].text.trim();
+
+  // Add assistant response to history for context continuity
+  state.conversationHistory.push({role:'assistant', content: raw});
+
+  // Parse JSON (strip markdown if present)
+  const jsonStr = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
+  return JSON.parse(jsonStr);
+}
+
+// ═══════════════════ RENDER FEEDBACK ═══════════════════
+function renderFeedback(fb, q){
+  document.getElementById('answerCard').style.display = 'none';
+  document.getElementById('feedbackCard').style.display = 'block';
+
+  const score = fb.overall_score;
+  const {grade, color} = getGrade(score);
+
+  document.getElementById('fbScore').textContent = score;
+  document.getElementById('fbScore').style.color = color;
+  document.getElementById('fbGrade').textContent = grade;
+  document.getElementById('fbGrade').style.color = color;
+
+  // Dimension bars
+  const dims = [
+    {key:'structure', label:'Structure & Clarity'},
+    {key:'stakeholder_mgmt', label:'Stakeholder Mgmt'},
+    {key:'metrics_data', label:'Metrics & Data'},
+    {key:'risk_prioritization', label:'Risk & Prioritization'},
+    {key:'communication', label:'Communication'},
+    {key:'technical_depth', label:'Technical Depth'},
+  ];
+  const barsHtml = dims.map(d=>{
+    const v = fb.dimensions?.[d.key] ?? 50;
+    const c = v>=70?'var(--success)':v>=50?'var(--warning)':'var(--danger)';
+    return `<div class="score-bar">
+      <div class="score-bar-label"><span>${d.label}</span><span>${v}</span></div>
+      <div class="score-bar-outer"><div class="score-bar-fill" style="width:${v}%;background:${c}"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('dimensionBars').innerHTML = barsHtml;
+
+  // Strengths / Improvements
+  const sl = document.getElementById('fbStrengths');
+  sl.innerHTML = (fb.strengths||[]).map(s=>`<li>${s}</li>`).join('');
+  const il = document.getElementById('fbImprovements');
+  il.innerHTML = (fb.improvements||[]).map(s=>`<li>${s}</li>`).join('');
+
+  document.getElementById('fbSummary').textContent = fb.brief_feedback || '';
+
+  // Follow-up
+  const fuBox = document.getElementById('fbFollowUp');
+  if(fb.follow_up_question){
+    document.getElementById('fbFollowUpText').textContent = fb.follow_up_question;
+    fuBox.style.display='block';
+  } else {
+    fuBox.style.display='none';
+  }
+
+  // Next button label
+  const isLast = state.currentIdx >= state.questions.length - 1;
+  document.getElementById('nextBtn').textContent = isLast ? 'View Final Report →' : 'Next Question →';
+}
+
+function getGrade(score){
+  if(score>=85) return {grade:'Outstanding',color:'#059669'};
+  if(score>=75) return {grade:'Strong',color:'#16a34a'};
+  if(score>=65) return {grade:'Solid',color:'#2563eb'};
+  if(score>=55) return {grade:'Developing',color:'#d97706'};
+  if(score>=40) return {grade:'Needs Work',color:'#ea580c'};
+  return {grade:'Poor',color:'#dc2626'};
+}
+
+// ═══════════════════ REPORT ═══════════════════
+function showReport(){
+  showScreen('screen-report');
+
+  const validScores = state.scores.filter(s=>s>0);
+  const avg = validScores.length ? Math.round(validScores.reduce((a,b)=>a+b,0)/validScores.length) : 0;
+  const {grade, color} = getGrade(avg);
+
+  document.getElementById('finalScore').textContent = avg;
+  document.getElementById('finalScore').style.color = color;
+
+  const gradeEl = document.getElementById('finalGrade');
+  gradeEl.textContent = grade;
+  gradeEl.style.background = color + '20';
+  gradeEl.style.color = color;
+
+  const verdicts = {
+    Outstanding: `Exceptional performance, ${state.userName}. You demonstrate senior-level TPM thinking. Focus on refining executive storytelling and industry-specific context.`,
+    Strong: `Strong showing, ${state.userName}. You have the core competencies. Sharpen your quantitative framing and push for more depth on risk trade-offs.`,
+    Solid: `Good foundation, ${state.userName}. Your answers show promise but need stronger metrics, cleaner STAR structure, and more explicit stakeholder framing.`,
+    Developing: `You're progressing, ${state.userName}. Prioritize practicing the STAR framework, adding specific metrics to every story, and articulating stakeholder impact more explicitly.`,
+    'Needs Work': `More preparation needed, ${state.userName}. Study the STAR method deeply, build a bank of 10 strong stories with metrics, and practice out loud daily.`,
+    Poor: `Significant preparation is needed. Focus on building concrete experience stories and use the SOAR (Situation → Objective → Action → Result) framework consistently.`
+  };
+  document.getElementById('finalVerdict').textContent = verdicts[grade] || verdicts['Needs Work'];
+
+  // Aggregate dimension scores
+  const dimKeys = ['structure','stakeholder_mgmt','metrics_data','risk_prioritization','communication','technical_depth'];
+  const dimLabels = ['Structure','Stakeholder Mgmt','Metrics & Data','Risk & Priority','Communication','Technical Depth'];
+  const dimAvgs = dimKeys.map(k=>{
+    const vals = state.feedbacks.filter(f=>f&&f.dimensions).map(f=>f.dimensions[k]||0);
+    return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
+  });
+
+  // Radar chart
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:dimLabels,
+      datasets:[{
+        label:'Your Score',
+        data:dimAvgs,
+        backgroundColor:'rgba(37,99,235,.15)',
+        borderColor:'rgba(37,99,235,.8)',
+        pointBackgroundColor:'rgba(37,99,235,1)',
+        pointRadius:4,
+        borderWidth:2
+      }]
+    },
+    options:{
+      scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:10}},pointLabels:{font:{size:11}}}},
+      plugins:{legend:{display:false}},
+      responsive:true
+    }
+  });
+
+  // Dimension report bars
+  const drHtml = dimLabels.map((l,i)=>{
+    const v=dimAvgs[i];
+    const c=v>=70?'var(--success)':v>=50?'var(--warning)':'var(--danger)';
+    return `<div class="score-bar" style="margin-bottom:8px">
+      <div class="score-bar-label"><span>${l}</span><span style="font-weight:700">${v}</span></div>
+      <div class="score-bar-outer"><div class="score-bar-fill" style="width:${v}%;background:${c}"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('dimensionReport').innerHTML = drHtml;
+
+  // Per-question breakdown
+  const bkHtml = state.questions.map((q,i)=>{
+    const s = state.scores[i]||0;
+    const f = state.feedbacks[i];
+    const cls = s>=70?'high':s>=50?'mid':'low';
+    const qShort = q.q.length>80 ? q.q.slice(0,80)+'…' : q.q;
+    return `<div class="q-item ${cls}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="badge ${cls==='high'?'badge-green':cls==='mid'?'badge-yellow':'badge-red'}">${q.category}</span>
+        <span style="font-weight:700;color:${cls==='high'?'var(--success)':cls==='mid'?'var(--warning)':'var(--danger)'}">${s}/100</span>
+      </div>
+      <div style="font-size:.875rem;font-weight:600;margin-bottom:4px">${qShort}</div>
+      ${f?.brief_feedback?`<div style="font-size:.8rem;color:var(--muted);line-height:1.4">${f.brief_feedback.slice(0,160)}${f.brief_feedback.length>160?'…':''}</div>`:'<div style="font-size:.8rem;color:var(--muted)">(Skipped)</div>'}
+    </div>`;
+  }).join('');
+  document.getElementById('questionBreakdown').innerHTML = bkHtml;
+
+  // Top recommendations (aggregate all improvements)
+  const allImprove = state.feedbacks.flatMap(f=>f?.improvements||[]);
+  const topRecs = [...new Set(allImprove)].slice(0,5);
+  document.getElementById('topRecommendations').innerHTML = topRecs.map(r=>`<li>${r}</li>`).join('');
+
+  document.getElementById('progressBar').style.width='100%';
+}
+
+function exportTranscript(){
+  const lines = [`TPM Mock Interview Transcript`, `Candidate: ${state.userName} | Role: ${state.targetRole}`, `Company: ${state.company} | Date: ${new Date().toLocaleDateString()}`, ``, `═══════════════════════════════════════`, ``];
+
+  state.questions.forEach((q,i)=>{
+    const f = state.feedbacks[i];
+    const s = state.scores[i]||0;
+    lines.push(`Q${i+1} [${q.category}] — Score: ${s}/100`);
+    lines.push(`Question: ${q.q}`);
+    lines.push(`Answer: ${state.answers[i]||'(Skipped)'}`);
+    if(f){
+      lines.push(`Feedback: ${f.brief_feedback||''}`);
+      lines.push(`Strengths: ${(f.strengths||[]).join('; ')}`);
+      lines.push(`Improve: ${(f.improvements||[]).join('; ')}`);
+    }
+    lines.push(``);
+  });
+
+  const validScores = state.scores.filter(s=>s>0);
+  const avg = validScores.length ? Math.round(validScores.reduce((a,b)=>a+b,0)/validScores.length) : 0;
+  lines.push(`Overall Score: ${avg}/100`);
+
+  const blob = new Blob([lines.join('\n')],{type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tpm-interview-${state.userName.replace(/\s+/g,'-').toLowerCase()}-${Date.now()}.txt`;
+  a.click();
+}
+
+function restartInterview(){
+  stopTimer();
+  showScreen('screen-setup');
+}
+
+// ═══════════════════ UTILS ═══════════════════
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+let notifTimeout;
+function showNotif(msg, type='info'){
+  const el=document.getElementById('notif');
+  el.textContent=msg;
+  el.className=type;
+  el.style.display='block';
+  clearTimeout(notifTimeout);
+  notifTimeout=setTimeout(()=>el.style.display='none',4000);
+}
+</script>
+</body>
+</html>
