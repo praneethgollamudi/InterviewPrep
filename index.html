@@ -153,7 +153,7 @@ canvas{max-width:100%!important}
   <div class="setup-hero">
     <div style="font-size:2.5rem;margin-bottom:12px">🤖</div>
     <h1>TPM AI Mock Interviewer</h1>
-    <p>Rigorous AI-powered interview practice with real-time evaluation across 6 TPM competencies</p>
+    <p>Rigorous AI-powered interview practice with real-time evaluation across 7 TPM competencies</p>
   </div>
 
   <div class="card">
@@ -171,14 +171,6 @@ canvas{max-width:100%!important}
           <option value="Staff TPM">Staff / Principal TPM</option>
         </select>
       </div>
-    </div>
-    <div style="margin-top:12px">
-      <label>Anthropic API Key <span style="color:var(--muted);font-weight:400">(used only in your browser)</span></label>
-      <div class="input-wrap">
-        <input type="password" id="apiKey" placeholder="sk-ant-..." />
-        <button class="eye" onclick="toggleKey()" id="eyeBtn">👁</button>
-      </div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:4px">Your key is never stored or sent to any server other than Anthropic's API.</div>
     </div>
   </div>
 
@@ -414,8 +406,11 @@ const DESHAW_CONTEXT = "DE Shaw is a quantitative investment firm that heavily i
 const BIGTECH_CONTEXT = "Big Tech companies value leadership principles, system-scale thinking, data-driven decision making, and the ability to influence cross-functional teams at scale.";
 
 // ═══════════════════ APP STATE ═══════════════════
+// Cloudflare Worker proxy URL — update after deploying worker.js
+const WORKER_URL = 'https://tpm-interviewer.YOUR-SUBDOMAIN.workers.dev';
+
 const state = {
-  apiKey: '', userName: '', targetRole: 'TPM',
+  userName: '', targetRole: 'TPM',
   mode: 'all', company: 'DE Shaw',
   numQ: 6, timeLimit: 180,
   questions: [], currentIdx: 0,
@@ -441,20 +436,11 @@ function selectCompany(el){
   el.classList.add('selected');
   state.company = el.dataset.company;
 }
-function toggleKey(){
-  const inp = document.getElementById('apiKey');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
 function startInterview(){
-  state.apiKey = document.getElementById('apiKey').value.trim();
   state.userName = document.getElementById('userName').value.trim() || 'Candidate';
   state.targetRole = document.getElementById('targetRole').value;
   state.numQ = parseInt(document.getElementById('numQ').value);
   state.timeLimit = parseInt(document.getElementById('timeLimit').value);
-
-  if(!state.apiKey){showNotif('Please enter your Anthropic API key to continue.','error');return;}
-  if(!state.apiKey.startsWith('sk-ant-')){showNotif('API key should start with sk-ant-','error');return;}
 
   buildQuestionSet();
   state.currentIdx = 0;
@@ -642,13 +628,9 @@ ${answer}`;
   // Add to conversation history for context
   state.conversationHistory.push({role:'user', content: userMsg});
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+  const resp = await fetch(WORKER_URL,{
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': state.apiKey,
-      'anthropic-version':'2023-06-01'
-    },
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       model: 'claude-opus-4-8',
       max_tokens: 1024,
