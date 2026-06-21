@@ -172,14 +172,6 @@ canvas{max-width:100%!important}
         </select>
       </div>
     </div>
-    <div style="margin-top:12px">
-      <label>Anthropic API Key <span style="color:var(--muted);font-weight:400">(used only in your browser)</span></label>
-      <div class="input-wrap">
-        <input type="password" id="apiKey" placeholder="sk-ant-..." />
-        <button class="eye" onclick="toggleKey()" id="eyeBtn">👁</button>
-      </div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:4px">Your key is never stored or sent to any server other than Anthropic's API.</div>
-    </div>
   </div>
 
   <div class="card">
@@ -414,8 +406,11 @@ const DESHAW_CONTEXT = "DE Shaw is a quantitative investment firm that heavily i
 const BIGTECH_CONTEXT = "Big Tech companies value leadership principles, system-scale thinking, data-driven decision making, and the ability to influence cross-functional teams at scale.";
 
 // ═══════════════════ APP STATE ═══════════════════
+// Cloudflare Worker proxy URL — update after deploying worker.js
+const WORKER_URL = 'https://tpm-interviewer.YOUR-SUBDOMAIN.workers.dev';
+
 const state = {
-  apiKey: '', userName: '', targetRole: 'TPM',
+  userName: '', targetRole: 'TPM',
   mode: 'all', company: 'DE Shaw',
   numQ: 6, timeLimit: 180,
   questions: [], currentIdx: 0,
@@ -429,6 +424,7 @@ function selectMode(el){
   document.querySelectorAll('#modeGrid .option-btn').forEach(b=>b.classList.remove('selected'));
   el.classList.add('selected');
   state.mode = el.dataset.mode;
+  // auto-select DE Shaw when GAITech mode chosen
   if(state.mode === 'gaITech'){
     document.querySelectorAll('#companyGrid .option-btn').forEach(b=>b.classList.remove('selected'));
     document.querySelector('#companyGrid [data-company="DE Shaw"]').classList.add('selected');
@@ -440,20 +436,11 @@ function selectCompany(el){
   el.classList.add('selected');
   state.company = el.dataset.company;
 }
-function toggleKey(){
-  const inp = document.getElementById('apiKey');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
 function startInterview(){
-  state.apiKey = document.getElementById('apiKey').value.trim();
   state.userName = document.getElementById('userName').value.trim() || 'Candidate';
   state.targetRole = document.getElementById('targetRole').value;
   state.numQ = parseInt(document.getElementById('numQ').value);
   state.timeLimit = parseInt(document.getElementById('timeLimit').value);
-
-  if(!state.apiKey){showNotif('Please enter your Anthropic API key to continue.','error');return;}
-  if(!state.apiKey.startsWith('sk-ant-')){showNotif('API key should start with sk-ant-','error');return;}
 
   buildQuestionSet();
   state.currentIdx = 0;
@@ -475,6 +462,7 @@ function buildQuestionSet(){
   if(state.mode === 'all'){
     pool = [...QUESTIONS.behavioral, ...QUESTIONS.situational, ...QUESTIONS.technical];
   } else if(state.mode === 'gaITech'){
+    // Always include all GAITech questions first, then fill with behavioral/situational
     const gaPool = [...QUESTIONS.gaITech];
     const fillPool = [...QUESTIONS.behavioral, ...QUESTIONS.situational];
     shuffle(gaPool); shuffle(fillPool);
@@ -637,15 +625,12 @@ Be strict but fair. A score of 70+ means genuinely strong. Most real candidates 
 Candidate's Answer:
 ${answer}`;
 
+  // Add to conversation history for context
   state.conversationHistory.push({role:'user', content: userMsg});
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+  const resp = await fetch(WORKER_URL,{
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': state.apiKey,
-      'anthropic-version':'2023-06-01'
-    },
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       model: 'claude-opus-4-8',
       max_tokens: 1024,
@@ -662,8 +647,10 @@ ${answer}`;
   const data = await resp.json();
   const raw = data.content[0].text.trim();
 
+  // Add assistant response to history for context continuity
   state.conversationHistory.push({role:'assistant', content: raw});
 
+  // Parse JSON (strip markdown if present)
   const jsonStr = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
   return JSON.parse(jsonStr);
 }
@@ -681,6 +668,7 @@ function renderFeedback(fb, q){
   document.getElementById('fbGrade').textContent = grade;
   document.getElementById('fbGrade').style.color = color;
 
+  // Dimension bars
   const dims = [
     {key:'structure', label:'Structure & Clarity'},
     {key:'stakeholder_mgmt', label:'Stakeholder Mgmt'},
@@ -700,6 +688,7 @@ function renderFeedback(fb, q){
   }).join('');
   document.getElementById('dimensionBars').innerHTML = barsHtml;
 
+  // Strengths / Improvements
   const sl = document.getElementById('fbStrengths');
   sl.innerHTML = (fb.strengths||[]).map(s=>`<li>${s}</li>`).join('');
   const il = document.getElementById('fbImprovements');
@@ -707,6 +696,7 @@ function renderFeedback(fb, q){
 
   document.getElementById('fbSummary').textContent = fb.brief_feedback || '';
 
+  // Follow-up
   const fuBox = document.getElementById('fbFollowUp');
   if(fb.follow_up_question){
     document.getElementById('fbFollowUpText').textContent = fb.follow_up_question;
@@ -715,6 +705,7 @@ function renderFeedback(fb, q){
     fuBox.style.display='none';
   }
 
+  // Next button label
   const isLast = state.currentIdx >= state.questions.length - 1;
   document.getElementById('nextBtn').textContent = isLast ? 'View Final Report →' : 'Next Question →';
 }
@@ -754,6 +745,7 @@ function showReport(){
   };
   document.getElementById('finalVerdict').textContent = verdicts[grade] || verdicts['Needs Work'];
 
+  // Aggregate dimension scores
   const dimKeys = ['structure','stakeholder_mgmt','metrics_data','risk_prioritization','communication','technical_depth','learning_change_mgmt'];
   const dimLabels = ['Structure','Stakeholder Mgmt','Metrics & Data','Risk & Priority','Communication','Technical Depth','Learning & Change'];
   const dimAvgs = dimKeys.map(k=>{
@@ -761,6 +753,7 @@ function showReport(){
     return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
   });
 
+  // Radar chart
   const ctx = document.getElementById('radarChart').getContext('2d');
   new Chart(ctx,{
     type:'radar',
@@ -783,6 +776,7 @@ function showReport(){
     }
   });
 
+  // Dimension report bars
   const drHtml = dimLabels.map((l,i)=>{
     const v=dimAvgs[i];
     const c=v>=70?'var(--success)':v>=50?'var(--warning)':'var(--danger)';
@@ -793,6 +787,7 @@ function showReport(){
   }).join('');
   document.getElementById('dimensionReport').innerHTML = drHtml;
 
+  // Per-question breakdown
   const bkHtml = state.questions.map((q,i)=>{
     const s = state.scores[i]||0;
     const f = state.feedbacks[i];
@@ -809,6 +804,7 @@ function showReport(){
   }).join('');
   document.getElementById('questionBreakdown').innerHTML = bkHtml;
 
+  // Top recommendations (aggregate all improvements)
   const allImprove = state.feedbacks.flatMap(f=>f?.improvements||[]);
   const topRecs = [...new Set(allImprove)].slice(0,5);
   document.getElementById('topRecommendations').innerHTML = topRecs.map(r=>`<li>${r}</li>`).join('');
