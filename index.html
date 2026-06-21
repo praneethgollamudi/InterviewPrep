@@ -55,6 +55,7 @@ textarea{height:150px;resize:vertical}
 .badge-green{background:var(--success-light);color:var(--success)}
 .badge-yellow{background:var(--warning-light);color:var(--warning)}
 .badge-red{background:var(--danger-light);color:var(--danger)}
+.badge-purple{background:#ede9fe;color:#7c3aed}
 
 /* ── Progress bar ── */
 .progress-bar-outer{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:8px 0}
@@ -196,6 +197,9 @@ canvas{max-width:100%!important}
       </div>
       <div class="option-btn" data-mode="technical" onclick="selectMode(this)">
         <div class="icon">⚙️</div><div class="name">Technical</div><div class="desc">TPM depth</div>
+      </div>
+      <div class="option-btn" data-mode="gaITech" onclick="selectMode(this)" style="border-color:#7c3aed20">
+        <div class="icon">🏦</div><div class="name">DE Shaw GAITech</div><div class="desc">Role-specific prep</div>
       </div>
     </div>
     <div style="margin-top:14px">
@@ -395,8 +399,18 @@ const QUESTIONS = {
   ]
 };
 
+// ── GAITech role-specific questions ──
+QUESTIONS.gaITech = [
+  {q:"You've been tasked with designing and running a firm-wide GAI learning plan for 2,000+ staff across trading, quant research, legal, and operations — teams with vastly different technical literacy. How do you approach this?", tips:"Cover: needs assessment per cohort, curriculum tiering (awareness→proficiency→advanced), HC/Talent Dev partnership model, measuring completion vs. behavioral adoption, exec sponsorship, feedback loops.", category:"GAITech"},
+  {q:"Six months into your GAI upskilling program, 35% of staff have completed at least one module but active tool usage is only 12%. Walk me through your complete diagnosis and recovery plan.", tips:"Cover: completion vs. usage gap (awareness ≠ habit), manager buy-in as a multiplier, workflow integration vs. standalone training, cohort-specific interventions, reinforcement mechanics, how you'd report this to leadership.", category:"GAITech"},
+  {q:"The quant research team is highly enthusiastic about GenAI tools, but legal and compliance teams are refusing adoption citing data privacy and auditability concerns. You own firm-wide GAI adoption. What's your strategy?", tips:"Cover: segmented stakeholder mapping, reframing compliance as partner not blocker, use-case tailoring per BU, sandboxed pilot design, security review process, BU-specific success metrics.", category:"GAITech"},
+  {q:"As TPM for GAITech, you're coordinating across 5 sub-teams — infrastructure, tooling, applications, data pipelines, and user education — all competing for the same 3 senior engineers. Two sub-teams are blocked. How do you manage this?", tips:"Cover: dependency mapping, unblocking vs. escalating, program health dashboard for leadership, re-sequencing decisions with business impact framing, transparent stakeholder comms without causing panic.", category:"GAITech"},
+  {q:"A senior stakeholder from HC (Human Capital) pushes back on your proposed GAI learning plan metrics, saying 'completion rates are vanity metrics.' How do you redesign the measurement framework?", tips:"Cover: outcome-based metrics (tool adoption rate, productivity proxy, error reduction), leading vs. lagging indicators, qualitative feedback loops, behavioral change measurement, alignment with business KPIs.", category:"GAITech"},
+  {q:"You are a Senior Product Manager transitioning into a Tech Program Management role at GAITech. How do you articulate the difference in your day-to-day and convince a skeptical engineering team you can operate as a TPM?", tips:"This is a framing/positioning question. Cover: PM vs TPM distinction (product vision vs. program execution), how your PM skills translate, what you'd do differently, concrete examples of program-level thinking from your past.", category:"GAITech"},
+];
+
 // DE Shaw specific flavor additions
-const DESHAW_CONTEXT = "DE Shaw is a quantitative investment firm that heavily invests in AI and machine learning. They value rigorous analytical thinking, data-driven decisions, and the ability to manage complex technical programs in a fast-paced, high-stakes financial environment.";
+const DESHAW_CONTEXT = "DE Shaw is a quantitative investment firm that heavily invests in AI and machine learning. They value rigorous analytical thinking, data-driven decisions, and the ability to manage complex technical programs in a fast-paced, high-stakes financial environment. The GAITech team specifically focuses on building GenAI infrastructure, running firm-wide GAI adoption programs, and partnering with the Talent Development team to upskill staff. The TPM role blends program coordination, stakeholder management, and learning program design.";
 const BIGTECH_CONTEXT = "Big Tech companies value leadership principles, system-scale thinking, data-driven decision making, and the ability to influence cross-functional teams at scale.";
 
 // ═══════════════════ APP STATE ═══════════════════
@@ -415,6 +429,12 @@ function selectMode(el){
   document.querySelectorAll('#modeGrid .option-btn').forEach(b=>b.classList.remove('selected'));
   el.classList.add('selected');
   state.mode = el.dataset.mode;
+  // auto-select DE Shaw when GAITech mode chosen
+  if(state.mode === 'gaITech'){
+    document.querySelectorAll('#companyGrid .option-btn').forEach(b=>b.classList.remove('selected'));
+    document.querySelector('#companyGrid [data-company="DE Shaw"]').classList.add('selected');
+    state.company = 'DE Shaw';
+  }
 }
 function selectCompany(el){
   document.querySelectorAll('#companyGrid .option-btn').forEach(b=>b.classList.remove('selected'));
@@ -447,18 +467,24 @@ function startInterview(){
   renderQuestion();
 }
 
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+}
+
 function buildQuestionSet(){
   let pool = [];
   if(state.mode === 'all'){
     pool = [...QUESTIONS.behavioral, ...QUESTIONS.situational, ...QUESTIONS.technical];
+  } else if(state.mode === 'gaITech'){
+    // Always include all GAITech questions first, then fill with behavioral/situational
+    const gaPool = [...QUESTIONS.gaITech];
+    const fillPool = [...QUESTIONS.behavioral, ...QUESTIONS.situational];
+    shuffle(gaPool); shuffle(fillPool);
+    pool = [...gaPool, ...fillPool];
   } else {
     pool = [...QUESTIONS[state.mode]];
   }
-  // Shuffle
-  for(let i=pool.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [pool[i],pool[j]]=[pool[j],pool[i]];
-  }
+  if(state.mode !== 'gaITech') shuffle(pool);
   state.questions = pool.slice(0, state.numQ);
 }
 
@@ -471,7 +497,7 @@ function renderQuestion(){
   document.getElementById('qCounter').textContent = `Question ${idx+1} of ${total}`;
   document.getElementById('progressBar').style.width = `${(idx/total)*100}%`;
 
-  const catMap = {Behavioral:'badge-blue',Situational:'badge-yellow',Technical:'badge-green'};
+  const catMap = {Behavioral:'badge-blue',Situational:'badge-yellow',Technical:'badge-green',GAITech:'badge-purple'};
   const badge = document.getElementById('categoryBadge');
   badge.textContent = q.category;
   badge.className = `badge ${catMap[q.category]||'badge-blue'}`;
@@ -588,7 +614,8 @@ Evaluate the candidate's interview answer rigorously. Return ONLY valid JSON (no
     "metrics_data": <0-100>,
     "risk_prioritization": <0-100>,
     "communication": <0-100>,
-    "technical_depth": <0-100>
+    "technical_depth": <0-100>,
+    "learning_change_mgmt": <0-100>
   },
   "strengths": [<2-3 specific, concrete strings>],
   "improvements": [<2-3 specific, actionable strings>],
@@ -603,6 +630,7 @@ Scoring rubric:
 - risk_prioritization (0-100): identifies risks, trade-offs, prioritization framework used
 - communication (0-100): clarity, executive presence, conciseness, narrative quality
 - technical_depth (0-100): TPM-relevant technical understanding, system thinking
+- learning_change_mgmt (0-100): ability to design learning/upskilling programs, drive behavioral change, partner with L&D/HC teams, measure adoption beyond completion rates, manage organizational change for technology adoption. Score 50 if question is not relevant to this dimension.
 
 Be strict but fair. A score of 70+ means genuinely strong. Most real candidates score 40-65.`;
 
@@ -666,6 +694,7 @@ function renderFeedback(fb, q){
     {key:'risk_prioritization', label:'Risk & Prioritization'},
     {key:'communication', label:'Communication'},
     {key:'technical_depth', label:'Technical Depth'},
+    {key:'learning_change_mgmt', label:'Learning & Change Mgmt'},
   ];
   const barsHtml = dims.map(d=>{
     const v = fb.dimensions?.[d.key] ?? 50;
@@ -735,8 +764,8 @@ function showReport(){
   document.getElementById('finalVerdict').textContent = verdicts[grade] || verdicts['Needs Work'];
 
   // Aggregate dimension scores
-  const dimKeys = ['structure','stakeholder_mgmt','metrics_data','risk_prioritization','communication','technical_depth'];
-  const dimLabels = ['Structure','Stakeholder Mgmt','Metrics & Data','Risk & Priority','Communication','Technical Depth'];
+  const dimKeys = ['structure','stakeholder_mgmt','metrics_data','risk_prioritization','communication','technical_depth','learning_change_mgmt'];
+  const dimLabels = ['Structure','Stakeholder Mgmt','Metrics & Data','Risk & Priority','Communication','Technical Depth','Learning & Change'];
   const dimAvgs = dimKeys.map(k=>{
     const vals = state.feedbacks.filter(f=>f&&f.dimensions).map(f=>f.dimensions[k]||0);
     return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0;
@@ -784,7 +813,7 @@ function showReport(){
     const qShort = q.q.length>80 ? q.q.slice(0,80)+'…' : q.q;
     return `<div class="q-item ${cls}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span class="badge ${cls==='high'?'badge-green':cls==='mid'?'badge-yellow':'badge-red'}">${q.category}</span>
+        <span class="badge ${q.category==='GAITech'?'badge-purple':cls==='high'?'badge-green':cls==='mid'?'badge-yellow':'badge-red'}">${q.category}</span>
         <span style="font-weight:700;color:${cls==='high'?'var(--success)':cls==='mid'?'var(--warning)':'var(--danger)'}">${s}/100</span>
       </div>
       <div style="font-size:.875rem;font-weight:600;margin-bottom:4px">${qShort}</div>
