@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TPM AI Mock Interviewer</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -126,6 +127,14 @@ textarea{height:150px;resize:vertical}
 .story-picker-skip:hover{color:var(--primary)}
 .story-loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.875rem;padding:8px 0}
 .spinner-muted{display:inline-block;width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+/* ── Resume upload ── */
+.resume-upload-area{border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all .15s;background:#fafbfc;margin-top:8px}
+.resume-upload-area:hover,.resume-upload-area.drag-over{border-color:var(--primary);background:var(--primary-light)}
+.resume-upload-icon{font-size:1.6rem;margin-bottom:6px}
+.resume-upload-text{font-size:.85rem;color:var(--muted)}
+.resume-upload-text strong{color:var(--primary);cursor:pointer}
+.resume-file-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--success-light);color:var(--success);border-radius:999px;font-size:.8rem;font-weight:600;margin-top:8px}
+.resume-preview{margin-top:8px;font-size:.8rem;color:var(--muted);max-height:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ── Model answer ── */
 .model-answer-box{margin-top:14px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
 .model-answer-box summary{padding:12px 16px;cursor:pointer;font-size:.875rem;font-weight:700;color:var(--primary);background:#f8fafc;list-style:none}
@@ -241,10 +250,15 @@ canvas{max-width:100%!important}
       <div style="font-size:.78rem;color:var(--muted);margin-top:4px">Your key is never stored or sent to any server other than Anthropic's API.</div>
     </div>
     <div style="margin-top:14px">
-      <details id="resumeDetails">
-        <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--primary);list-style:none;padding:2px 0">+ Paste your resume <span style="font-weight:400;color:var(--muted)">(optional — enables AI example hints &amp; model answers)</span></summary>
-        <textarea id="resumeInput" placeholder="Paste your resume or key experience highlights here..." style="height:120px;margin-top:8px"></textarea>
-      </details>
+      <label>Resume <span style="font-weight:400;color:var(--muted)">(optional — enables AI story suggestions &amp; model answers)</span></label>
+      <input type="file" id="resumeFile" accept=".txt,.pdf" style="display:none" onchange="handleResumeFile(this)">
+      <div class="resume-upload-area" id="resumeDropZone" onclick="document.getElementById('resumeFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleResumeDrop(event)">
+        <div class="resume-upload-icon">📄</div>
+        <div class="resume-upload-text">Drop your resume here or <strong>click to browse</strong></div>
+        <div class="resume-upload-text" style="font-size:.78rem;margin-top:2px">.pdf or .txt — stays in your browser</div>
+      </div>
+      <div id="resumeFileBadge" style="display:none"></div>
+      <textarea id="resumeInput" placeholder="Or paste your resume text here..." style="height:90px;margin-top:8px;font-size:.82rem" oninput="onResumeTextInput()"></textarea>
     </div>
   </div>
 
@@ -350,11 +364,13 @@ canvas{max-width:100%!important}
       <div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:4px">✨ AI Draft — review and edit before submitting</div>
       <div id="draftLoading" class="story-loading"><span class="spinner-muted"></span> Writing your STAR draft…</div>
       <textarea id="draftTextarea" style="display:none;height:240px" oninput="updateCharCount()"></textarea>
-      <div class="char-count" id="draftCharRow" style="display:none"><span id="charCount">0</span> characters · <span id="wordCount">0</span> words</div>
-      <div id="draftFooter" style="display:none;margin-top:12px;display:none;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()"><span id="submitLabel">Submit for Evaluation</span></button>
-        <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
-        <button class="btn btn-secondary" onclick="switchToWizard()" style="margin-left:auto">Edit step by step</button>
+      <div class="char-count" id="draftCharRow" style="display:none"><span id="charCountDraft">0</span> characters · <span id="wordCountDraft">0</span> words</div>
+      <div id="draftFooter" style="display:none">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center">
+          <button class="btn btn-primary" id="submitBtnDraft" onclick="submitAnswer()"><span id="submitLabelDraft">Submit for Evaluation</span></button>
+          <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+          <button class="btn btn-secondary" onclick="switchToWizard()" style="margin-left:auto">Edit step by step</button>
+        </div>
       </div>
     </div>
 
@@ -728,10 +744,11 @@ function renderQuestion(){
   document.getElementById('feedbackCard').style.display = 'none';
   document.getElementById('answerPeek').style.display = 'none';
   document.getElementById('answerCard').style.display = 'block';
-  document.getElementById('submitBtn').disabled = false;
-  document.getElementById('submitLabel').textContent = 'Submit for Evaluation';
-  if(document.getElementById('submitBtnFree')) document.getElementById('submitBtnFree').disabled = false;
-  if(document.getElementById('submitLabelFree')) document.getElementById('submitLabelFree').textContent = 'Submit for Evaluation';
+  [['submitBtn','submitLabel'],['submitBtnFree','submitLabelFree'],['submitBtnDraft','submitLabelDraft']].forEach(([bid,lid])=>{
+    const b = document.getElementById(bid); const l = document.getElementById(lid);
+    if(b) b.disabled = false;
+    if(l) l.textContent = 'Submit for Evaluation';
+  });
 
   stopVoice();
   state.answerMode = 'wizard';
@@ -793,8 +810,8 @@ function updateCharCount(){
     const el = document.getElementById('draftTextarea');
     v = el ? el.value : '';
     const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
-    if(document.getElementById('charCount')) document.getElementById('charCount').textContent = v.length;
-    if(document.getElementById('wordCount')) document.getElementById('wordCount').textContent = wc;
+    if(document.getElementById('charCountDraft')) document.getElementById('charCountDraft').textContent = v.length;
+    if(document.getElementById('wordCountDraft')) document.getElementById('wordCountDraft').textContent = wc;
     return;
   }
   if(state.answerMode === 'free'){
@@ -819,15 +836,13 @@ async function submitAnswer(){
 
   stopTimer();
   stopVoice();
-  // Disable both submit buttons
-  const btnW = document.getElementById('submitBtn');
-  const btnF = document.getElementById('submitBtnFree');
-  const lblW = document.getElementById('submitLabel');
-  const lblF = document.getElementById('submitLabelFree');
-  if(btnW) btnW.disabled = true;
-  if(btnF) btnF.disabled = true;
-  if(lblW) lblW.innerHTML = '<span class="spinner"></span> Evaluating...';
-  if(lblF) lblF.innerHTML = '<span class="spinner"></span> Evaluating...';
+  // Disable all submit buttons
+  [['submitBtn','submitLabel'],['submitBtnFree','submitLabelFree'],['submitBtnDraft','submitLabelDraft']].forEach(([bid,lid])=>{
+    const b = document.getElementById(bid);
+    const l = document.getElementById(lid);
+    if(b) b.disabled = true;
+    if(l) l.innerHTML = '<span class="spinner"></span> Evaluating...';
+  });
 
   const q = state.questions[state.currentIdx];
   state.answers.push(ans);
@@ -840,8 +855,12 @@ async function submitAnswer(){
   } catch(err){
     console.error(err);
     showNotif('API error: ' + err.message, 'error');
-    document.getElementById('submitBtn').disabled = false;
-    document.getElementById('submitLabel').textContent = 'Submit Answer';
+    [['submitBtn','submitLabel'],['submitBtnFree','submitLabelFree'],['submitBtnDraft','submitLabelDraft']].forEach(([bid,lid])=>{
+      const b = document.getElementById(bid);
+      const l = document.getElementById(lid);
+      if(b) b.disabled = false;
+      if(l) l.textContent = 'Submit for Evaluation';
+    });
   }
 }
 
@@ -1367,6 +1386,7 @@ async function selectStory(idx){
   draftCharRow.style.display = 'none';
   draftFooter.style.display = 'none';
   state.answerMode = 'draft';
+  document.getElementById('wizardFreeHeader').style.display = 'none';
 
   try {
     const resumeCtx = state.resumeText ? `\n\nCandidate's resume:\n${state.resumeText.slice(0, 3000)}` : '';
@@ -1378,13 +1398,13 @@ async function selectStory(idx){
     draftTextarea.value = draft;
     draftTextarea.style.display = 'block';
     draftCharRow.style.display = 'block';
-    draftFooter.style.display = 'flex';
+    draftFooter.style.display = 'block';
     updateCharCount();
   } catch(err){
     draftLoading.style.display = 'none';
     draftTextarea.value = '';
     draftTextarea.style.display = 'block';
-    draftFooter.style.display = 'flex';
+    draftFooter.style.display = 'block';
     showNotif('Could not generate draft: ' + err.message, 'error');
   }
 }
@@ -1436,6 +1456,83 @@ function showNotif(msg, type='info'){
   el.style.display='block';
   clearTimeout(notifTimeout);
   notifTimeout=setTimeout(()=>el.style.display='none',4000);
+}
+
+// ═══════════════════ RESUME UPLOAD ═══════════════════
+function onResumeTextInput(){
+  state.resumeText = document.getElementById('resumeInput').value.trim();
+  if(state.resumeText){
+    showResumeBadge('Pasted text (' + state.resumeText.split(/\s+/).length + ' words)');
+  } else {
+    clearResumeBadge();
+  }
+}
+
+function showResumeBadge(label){
+  const badge = document.getElementById('resumeFileBadge');
+  badge.innerHTML = `<span class="resume-file-badge">✓ ${label} <span onclick="clearResumeBadge()" style="cursor:pointer;margin-left:4px;opacity:.7">✕</span></span>`;
+  badge.style.display = 'block';
+}
+
+function clearResumeBadge(){
+  document.getElementById('resumeFileBadge').style.display = 'none';
+  document.getElementById('resumeInput').value = '';
+  state.resumeText = '';
+}
+
+async function handleResumeFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = ''; // reset so same file can be re-selected
+  await loadResumeFile(file);
+}
+
+function handleResumeDrop(e){
+  e.preventDefault();
+  document.getElementById('resumeDropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) loadResumeFile(file);
+}
+
+async function loadResumeFile(file){
+  const zone = document.getElementById('resumeDropZone');
+  const origHtml = zone.innerHTML;
+  zone.innerHTML = '<div class="story-loading"><span class="spinner-muted"></span> Reading resume…</div>';
+
+  try {
+    let text = '';
+    if(file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')){
+      text = await extractPdfText(file);
+    } else {
+      text = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.onerror = rej;
+        r.readAsText(file);
+      });
+    }
+    state.resumeText = text.trim();
+    document.getElementById('resumeInput').value = state.resumeText;
+    showResumeBadge(`${file.name} (${state.resumeText.split(/\s+/).length} words)`);
+  } catch(err){
+    showNotif('Could not read file: ' + err.message, 'error');
+  } finally {
+    zone.innerHTML = origHtml;
+  }
+}
+
+async function extractPdfText(file){
+  if(typeof pdfjsLib === 'undefined') throw new Error('PDF library not loaded');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  const pages = [];
+  for(let i = 1; i <= pdf.numPages; i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join(' '));
+  }
+  return pages.join('\n');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
