@@ -113,9 +113,19 @@ textarea{height:150px;resize:vertical}
 .voice-status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--danger-light);color:var(--danger);font-size:.78rem;font-weight:700}
 .voice-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
-/* ── Example nudge ── */
-.nudge-card{background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px}
-.nudge-header{font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:6px}
+/* ── Story picker ── */
+.story-picker-card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.story-picker-title{font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
+.story-options{display:flex;flex-direction:column;gap:10px}
+.story-option{border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:all .15s;background:var(--card);text-align:left;width:100%}
+.story-option:hover{border-color:var(--primary);background:var(--primary-light)}
+.story-option-title{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:4px}
+.story-option-desc{font-size:.82rem;color:var(--muted);line-height:1.5}
+.story-option-cta{font-size:.8rem;font-weight:700;color:var(--primary);margin-top:6px}
+.story-picker-skip{font-size:.82rem;color:var(--muted);cursor:pointer;text-decoration:underline;margin-top:12px;display:inline-block}
+.story-picker-skip:hover{color:var(--primary)}
+.story-loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.875rem;padding:8px 0}
+.spinner-muted{display:inline-block;width:16px;height:16px;border:2.5px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
 /* ── Model answer ── */
 .model-answer-box{margin-top:14px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
 .model-answer-box summary{padding:12px 16px;cursor:pointer;font-size:.875rem;font-weight:700;color:var(--primary);background:#f8fafc;list-style:none}
@@ -325,16 +335,31 @@ canvas{max-width:100%!important}
     </details>
   </div>
 
-  <!-- Example nudge (shown when resume provided) -->
-  <div id="exampleNudgeCard" style="display:none" class="nudge-card">
-    <div class="nudge-header">💡 Possible example from your background</div>
-    <div id="exampleNudgeText" style="font-size:.875rem;line-height:1.6;color:#78350f"></div>
+  <!-- Story picker (shown when resume provided) -->
+  <div id="storyPickerCard" class="story-picker-card" style="display:none">
+    <div class="story-picker-title">Pick an experience from your background</div>
+    <div id="storyPickerBody">
+      <div class="story-loading"><span class="spinner-muted"></span> Finding relevant examples from your resume…</div>
+    </div>
   </div>
 
   <div class="card" id="answerCard">
 
-    <!-- Header: step tracker + mode toggle -->
-    <div class="answer-mode-bar">
+    <!-- Draft pane (shown after story pick) -->
+    <div id="draftPane" style="display:none">
+      <div style="font-size:.82rem;font-weight:700;color:var(--primary);margin-bottom:4px">✨ AI Draft — review and edit before submitting</div>
+      <div id="draftLoading" class="story-loading"><span class="spinner-muted"></span> Writing your STAR draft…</div>
+      <textarea id="draftTextarea" style="display:none;height:240px" oninput="updateCharCount()"></textarea>
+      <div class="char-count" id="draftCharRow" style="display:none"><span id="charCount">0</span> characters · <span id="wordCount">0</span> words</div>
+      <div id="draftFooter" style="display:none;margin-top:12px;display:none;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()"><span id="submitLabel">Submit for Evaluation</span></button>
+        <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+        <button class="btn btn-secondary" onclick="switchToWizard()" style="margin-left:auto">Edit step by step</button>
+      </div>
+    </div>
+
+    <!-- Header: step tracker + mode toggle (wizard/free-form) -->
+    <div id="wizardFreeHeader" class="answer-mode-bar">
       <div id="wizardSteps" class="wizard-steps">
         <div class="wstep active" id="wstep-0">S</div>
         <div class="wstep-line"></div>
@@ -603,7 +628,7 @@ const state = {
   timerInterval: null, timeLeft: 180,
   conversationHistory: [],
   resumeText: '',
-  answerMode: 'wizard',
+  answerMode: 'wizard',   // 'wizard' | 'free' | 'draft'
   wizardStep: 0,
   voiceSection: null,
   recognition: null,
@@ -708,14 +733,30 @@ function renderQuestion(){
   if(document.getElementById('submitBtnFree')) document.getElementById('submitBtnFree').disabled = false;
   if(document.getElementById('submitLabelFree')) document.getElementById('submitLabelFree').textContent = 'Submit for Evaluation';
 
-  // Reset wizard to step 0
   stopVoice();
-  goToWizardStep(0);
-  setAnswerMode('wizard');
+  state.answerMode = 'wizard';
+  state.wizardStep = 0;
 
-  // Hide example nudge, then fetch if resume present
-  document.getElementById('exampleNudgeCard').style.display = 'none';
-  if(state.resumeText) fetchExampleNudge(q.q);
+  // Hide all answer modes initially
+  document.getElementById('draftPane').style.display = 'none';
+  document.getElementById('draftTextarea').style.display = 'none';
+  document.getElementById('draftFooter').style.display = 'none';
+  document.getElementById('draftCharRow').style.display = 'none';
+  document.getElementById('wizardMode').style.display = 'none';
+  document.getElementById('freeMode').style.display = 'none';
+  document.getElementById('wizardFreeHeader').style.display = 'none';
+
+  if(state.resumeText){
+    // Story picker takes over — wizard/free revealed only if user skips picker
+    document.getElementById('storyPickerCard').style.display = 'block';
+    fetchStoryOptions(q.q);
+  } else {
+    // No resume: show wizard directly
+    document.getElementById('storyPickerCard').style.display = 'none';
+    document.getElementById('wizardFreeHeader').style.display = '';
+    document.getElementById('wizardMode').style.display = '';
+    goToWizardStep(0);
+  }
 
   startTimer();
 }
@@ -747,18 +788,28 @@ function autoSubmit(){
 }
 
 function updateCharCount(){
-  // Update whichever count fields are visible
-  const review = document.getElementById('answerReview');
-  const free = document.getElementById('answerInput');
-  const v = state.answerMode === 'free' ? (free ? free.value : '') : (review ? review.value : '');
-  const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
-  if(state.answerMode === 'free'){
-    if(document.getElementById('charCount2')) document.getElementById('charCount2').textContent = v.length;
-    if(document.getElementById('wordCount2')) document.getElementById('wordCount2').textContent = wc;
-  } else {
+  let v = '';
+  if(state.answerMode === 'draft'){
+    const el = document.getElementById('draftTextarea');
+    v = el ? el.value : '';
+    const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
     if(document.getElementById('charCount')) document.getElementById('charCount').textContent = v.length;
     if(document.getElementById('wordCount')) document.getElementById('wordCount').textContent = wc;
+    return;
   }
+  if(state.answerMode === 'free'){
+    const el = document.getElementById('answerInput');
+    v = el ? el.value : '';
+    const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
+    if(document.getElementById('charCount2')) document.getElementById('charCount2').textContent = v.length;
+    if(document.getElementById('wordCount2')) document.getElementById('wordCount2').textContent = wc;
+    return;
+  }
+  const el = document.getElementById('answerReview');
+  v = el ? el.value : '';
+  const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
+  if(document.getElementById('charCount')) document.getElementById('charCount').textContent = v.length;
+  if(document.getElementById('wordCount')) document.getElementById('wordCount').textContent = wc;
 }
 
 async function submitAnswer(){
@@ -1137,6 +1188,10 @@ function goToWizardStep(step){
 }
 
 function buildAnswer(){
+  if(state.answerMode === 'draft'){
+    const el = document.getElementById('draftTextarea');
+    return el ? el.value.trim() : '';
+  }
   if(state.answerMode === 'free'){
     const el = document.getElementById('answerInput');
     return el ? el.value.trim() : '';
@@ -1144,7 +1199,6 @@ function buildAnswer(){
   if(state.wizardStep === 4){
     const el = document.getElementById('answerReview');
     const val = el ? el.value.trim() : '';
-    // If review pane has content (user edited it), use it; otherwise build from STAR fields
     if(val) return val;
   }
   return STAR_KEYS.map(k => {
@@ -1246,30 +1300,103 @@ async function callClaude(systemPrompt, userMsg, maxTokens){
   return data.content[0].text.trim();
 }
 
-async function fetchExampleNudge(question){
+async function fetchStoryOptions(question){
   if(!state.resumeText) return;
-  const nudgeCard = document.getElementById('exampleNudgeCard');
-  const nudgeText = document.getElementById('exampleNudgeText');
-  // Show a loading state briefly
-  nudgeText.textContent = 'Finding a relevant example from your background…';
-  nudgeCard.style.display = 'block';
+  const card = document.getElementById('storyPickerCard');
+  const body = document.getElementById('storyPickerBody');
+  card.style.display = 'block';
+  body.innerHTML = '<div class="story-loading"><span class="spinner-muted"></span> Finding relevant examples from your resume…</div>';
 
-  const timer = setTimeout(() => {
-    // If still showing loading text after 6s, hide it
-    if(nudgeText.textContent.includes('Finding')) nudgeCard.style.display = 'none';
-  }, 6000);
+  // Hide the wizard header while picker is shown
+  document.getElementById('wizardFreeHeader').style.display = 'none';
+  document.getElementById('wizardMode').style.display = 'none';
+  document.getElementById('freeMode').style.display = 'none';
 
   try {
-    const sys = `You are a career coach. Given a resume and an interview question, identify 1-2 concrete experiences from the resume that would make a strong answer. Be specific: name the project/role/company and the relevant angle. Keep it to 2-3 short bullet points. Plain text only, no markdown headers.`;
+    const sys = `You are a career coach. Given a resume and an interview question, identify 2-3 concrete experiences from the resume that could answer the question well. Return ONLY a JSON array with this exact structure, no other text:
+[
+  {"title": "Short 6-8 word title", "desc": "One sentence describing why this experience fits"},
+  {"title": "Short 6-8 word title", "desc": "One sentence describing why this experience fits"}
+]
+Be specific — reference actual roles, companies, or projects from the resume.`;
     const msg = `Interview question: ${question}\n\nResume:\n${state.resumeText.slice(0, 3000)}`;
-    const result = await callClaude(sys, msg, 200);
-    clearTimeout(timer);
-    nudgeText.textContent = result;
-    nudgeCard.style.display = 'block';
+    const raw = await callClaude(sys, msg, 300);
+    const jsonStr = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
+    const options = JSON.parse(jsonStr);
+
+    let html = '<div class="story-options">';
+    options.forEach((opt, i) => {
+      html += `<button class="story-option" onclick="selectStory(${i})">
+        <div class="story-option-title">${opt.title}</div>
+        <div class="story-option-desc">${opt.desc}</div>
+        <div class="story-option-cta">Use this experience →</div>
+      </button>`;
+    });
+    html += '</div>';
+    html += `<span class="story-picker-skip" onclick="switchToWizard()">Write from scratch instead</span>`;
+    body.innerHTML = html;
+    // Store options for use in selectStory
+    state._storyOptions = options;
   } catch(_){
-    clearTimeout(timer);
-    nudgeCard.style.display = 'none';
+    // Fallback to wizard silently
+    switchToWizard();
   }
+}
+
+async function selectStory(idx){
+  const story = state._storyOptions?.[idx];
+  if(!story) { switchToWizard(); return; }
+
+  const q = state.questions[state.currentIdx];
+
+  // Hide picker, show draft pane
+  document.getElementById('storyPickerCard').style.display = 'none';
+  document.getElementById('wizardFreeHeader').style.display = 'none';
+  document.getElementById('wizardMode').style.display = 'none';
+  document.getElementById('freeMode').style.display = 'none';
+
+  const draftPane = document.getElementById('draftPane');
+  const draftLoading = document.getElementById('draftLoading');
+  const draftTextarea = document.getElementById('draftTextarea');
+  const draftCharRow = document.getElementById('draftCharRow');
+  const draftFooter = document.getElementById('draftFooter');
+
+  draftPane.style.display = 'block';
+  draftLoading.style.display = 'flex';
+  draftTextarea.style.display = 'none';
+  draftCharRow.style.display = 'none';
+  draftFooter.style.display = 'none';
+  state.answerMode = 'draft';
+
+  try {
+    const resumeCtx = state.resumeText ? `\n\nCandidate's resume:\n${state.resumeText.slice(0, 3000)}` : '';
+    const sys = `You are writing a STAR-format interview answer on behalf of a ${state.targetRole} candidate applying to ${state.company}. Use the specified experience from their background to answer the question. Be specific, include realistic metrics, and write in first person. Format with clear SITUATION, TASK, ACTION, RESULT labels. Keep it 200-260 words.${resumeCtx}`;
+    const userMsg = `Interview question: ${q.q}\n\nExperience to use: ${story.title} — ${story.desc}`;
+    const draft = await callClaude(sys, userMsg, 600);
+
+    draftLoading.style.display = 'none';
+    draftTextarea.value = draft;
+    draftTextarea.style.display = 'block';
+    draftCharRow.style.display = 'block';
+    draftFooter.style.display = 'flex';
+    updateCharCount();
+  } catch(err){
+    draftLoading.style.display = 'none';
+    draftTextarea.value = '';
+    draftTextarea.style.display = 'block';
+    draftFooter.style.display = 'flex';
+    showNotif('Could not generate draft: ' + err.message, 'error');
+  }
+}
+
+function switchToWizard(){
+  document.getElementById('storyPickerCard').style.display = 'none';
+  document.getElementById('draftPane').style.display = 'none';
+  document.getElementById('wizardFreeHeader').style.display = '';
+  document.getElementById('wizardMode').style.display = '';
+  document.getElementById('freeMode').style.display = 'none';
+  state.answerMode = 'wizard';
+  goToWizardStep(0);
 }
 
 async function showModelAnswer(){
