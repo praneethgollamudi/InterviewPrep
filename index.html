@@ -79,6 +79,56 @@ textarea{height:150px;resize:vertical}
 /* ── Char count ── */
 .char-count{text-align:right;font-size:.8rem;color:var(--muted);margin-top:4px}
 
+/* ── Answer mode bar ── */
+.answer-mode-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.mode-tab{padding:5px 14px;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--card);color:var(--muted);transition:all .15s}
+.mode-tab:hover{border-color:var(--primary);color:var(--primary)}
+/* ── Wizard step tracker ── */
+.wizard-steps{display:flex;align-items:center;gap:4px}
+.wstep{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:var(--muted);transition:all .25s}
+.wstep.active{border-color:var(--primary);background:var(--primary);color:#fff}
+.wstep.done{border-color:var(--success);background:var(--success-light);color:var(--success)}
+.wstep-line{width:20px;height:2px;background:var(--border);border-radius:1px}
+/* ── Wizard panes ── */
+.wizard-pane{display:none}
+.wizard-pane.active{display:block}
+/* ── Coach prompt ── */
+.star-coach-prompt{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;padding:12px;background:#f8fafc;border-radius:8px;border-left:3px solid var(--primary)}
+.star-title{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.star-coach-text{font-size:.85rem;color:var(--muted);line-height:1.5}
+/* ── Star labels ── */
+.star-label{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;font-size:.85rem;font-weight:800;color:#fff;flex-shrink:0}
+.star-s{background:#7c3aed}.star-t{background:#2563eb}.star-a{background:#059669}.star-r{background:#d97706}
+/* ── STAR textarea ── */
+.star-textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;font-family:inherit;color:var(--text);background:var(--card);transition:border .15s;resize:vertical;min-height:100px;height:110px}
+.star-textarea:focus{outline:none;border-color:var(--primary)}
+.star-char-count{font-size:.78rem;color:var(--muted)}
+/* ── Wizard footer ── */
+.wizard-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:8px}
+/* ── Mic ── */
+.mic-btn{padding:5px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer;font-size:.82rem;color:var(--muted);transition:all .15s}
+.mic-btn:hover,.mic-btn.active{border-color:var(--danger);color:var(--danger);background:var(--danger-light)}
+.mic-btn-large{padding:5px 12px}
+/* ── Voice status pill ── */
+.voice-status-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:var(--danger-light);color:var(--danger);font-size:.78rem;font-weight:700}
+.voice-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+/* ── Example nudge ── */
+.nudge-card{background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.nudge-header{font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:6px}
+/* ── Model answer ── */
+.model-answer-box{margin-top:14px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden}
+.model-answer-box summary{padding:12px 16px;cursor:pointer;font-size:.875rem;font-weight:700;color:var(--primary);background:#f8fafc;list-style:none}
+.model-answer-box summary::before{content:"▶ "}
+.model-answer-box[open] summary::before{content:"▼ "}
+.model-answer-body{padding:14px 16px;font-size:.875rem;line-height:1.7;color:var(--text);white-space:pre-wrap}
+.model-answer-loading{padding:14px 16px;color:var(--muted);font-size:.875rem;display:flex;align-items:center;gap:8px}
+.spinner-dark{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(0,0,0,.15);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@media(max-width:600px){
+  .star-coach-text{font-size:.8rem}
+  .star-textarea{height:90px}
+}
+
 /* ── Tip box ── */
 .tip-box{background:#f8fafc;border-left:3px solid var(--primary);border-radius:0 8px 8px 0;padding:12px 14px;font-size:.85rem;line-height:1.6;color:var(--muted)}
 .tip-box summary{cursor:pointer;font-weight:600;color:var(--primary);list-style:none}
@@ -180,6 +230,12 @@ canvas{max-width:100%!important}
       </div>
       <div style="font-size:.78rem;color:var(--muted);margin-top:4px">Your key is never stored or sent to any server other than Anthropic's API.</div>
     </div>
+    <div style="margin-top:14px">
+      <details id="resumeDetails">
+        <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--primary);list-style:none;padding:2px 0">+ Paste your resume <span style="font-weight:400;color:var(--muted)">(optional — enables AI example hints &amp; model answers)</span></summary>
+        <textarea id="resumeInput" placeholder="Paste your resume or key experience highlights here..." style="height:120px;margin-top:8px"></textarea>
+      </details>
+    </div>
   </div>
 
   <div class="card">
@@ -269,16 +325,131 @@ canvas{max-width:100%!important}
     </details>
   </div>
 
+  <!-- Example nudge (shown when resume provided) -->
+  <div id="exampleNudgeCard" style="display:none" class="nudge-card">
+    <div class="nudge-header">💡 Possible example from your background</div>
+    <div id="exampleNudgeText" style="font-size:.875rem;line-height:1.6;color:#78350f"></div>
+  </div>
+
   <div class="card" id="answerCard">
-    <label>Your Answer</label>
-    <textarea id="answerInput" placeholder="Structure your answer with: Situation → Task → Action → Result. Include metrics, stakeholder impact, and what you'd do differently..." oninput="updateCharCount()"></textarea>
-    <div class="char-count"><span id="charCount">0</span> characters · <span id="wordCount">0</span> words</div>
-    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()">
-        <span id="submitLabel">Submit Answer</span>
-      </button>
-      <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+
+    <!-- Header: step tracker + mode toggle -->
+    <div class="answer-mode-bar">
+      <div id="wizardSteps" class="wizard-steps">
+        <div class="wstep active" id="wstep-0">S</div>
+        <div class="wstep-line"></div>
+        <div class="wstep" id="wstep-1">T</div>
+        <div class="wstep-line"></div>
+        <div class="wstep" id="wstep-2">A</div>
+        <div class="wstep-line"></div>
+        <div class="wstep" id="wstep-3">R</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="mode-tab" id="tabFree" onclick="setAnswerMode('free')">Free-form</button>
+        <div id="globalVoiceStatus" class="voice-status-pill" style="display:none">
+          <span class="voice-dot"></span> Listening…
+        </div>
+      </div>
     </div>
+
+    <!-- Wizard mode -->
+    <div id="wizardMode">
+      <div class="wizard-pane active" id="wpane-0">
+        <div class="star-coach-prompt">
+          <span class="star-label star-s">S</span>
+          <div><div class="star-title">Situation</div><div class="star-coach-text">Set the scene. What was the project, team, or challenge you were dealing with?</div></div>
+        </div>
+        <textarea class="star-textarea" id="ta-situation" placeholder="Describe the context, team, and stakes..." oninput="onStarInput('situation')"></textarea>
+        <div class="wizard-footer">
+          <div class="star-char-count" id="count-situation">0 words</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="mic-btn" id="mic-situation" onclick="toggleVoice('situation')">🎤</button>
+            <button class="btn btn-primary" onclick="wizardNext()">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-pane" id="wpane-1">
+        <div class="star-coach-prompt">
+          <span class="star-label star-t">T</span>
+          <div><div class="star-title">Task</div><div class="star-coach-text">What was YOUR specific role or responsibility in this situation?</div></div>
+        </div>
+        <textarea class="star-textarea" id="ta-task" placeholder="Your goal, ownership, or mandate..." oninput="onStarInput('task')"></textarea>
+        <div class="wizard-footer">
+          <div class="star-char-count" id="count-task">0 words</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="mic-btn" id="mic-task" onclick="toggleVoice('task')">🎤</button>
+            <button class="btn btn-secondary" onclick="wizardBack()">← Back</button>
+            <button class="btn btn-primary" onclick="wizardNext()">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-pane" id="wpane-2">
+        <div class="star-coach-prompt">
+          <span class="star-label star-a">A</span>
+          <div><div class="star-title">Action</div><div class="star-coach-text">What specific steps did YOU take? Include frameworks used, decisions made, people involved.</div></div>
+        </div>
+        <textarea class="star-textarea" id="ta-action" placeholder="Walk through your specific actions step by step..." oninput="onStarInput('action')"></textarea>
+        <div class="wizard-footer">
+          <div class="star-char-count" id="count-action">0 words</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="mic-btn" id="mic-action" onclick="toggleVoice('action')">🎤</button>
+            <button class="btn btn-secondary" onclick="wizardBack()">← Back</button>
+            <button class="btn btn-primary" onclick="wizardNext()">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-pane" id="wpane-3">
+        <div class="star-coach-prompt">
+          <span class="star-label star-r">R</span>
+          <div><div class="star-title">Result</div><div class="star-coach-text">What was the measurable outcome? Include numbers, timelines, and business impact.</div></div>
+        </div>
+        <textarea class="star-textarea" id="ta-result" placeholder="Quantify the impact — adoption %, time saved, cost reduced..." oninput="onStarInput('result')"></textarea>
+        <div class="wizard-footer">
+          <div class="star-char-count" id="count-result">0 words</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="mic-btn" id="mic-result" onclick="toggleVoice('result')">🎤</button>
+            <button class="btn btn-secondary" onclick="wizardBack()">← Back</button>
+            <button class="btn btn-primary" onclick="wizardNext()">Review →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review pane -->
+      <div class="wizard-pane" id="wpane-review">
+        <div style="font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase">Your assembled answer — edit if needed</div>
+        <textarea id="answerReview" style="height:220px" oninput="updateCharCount()"></textarea>
+        <div class="char-count"><span id="charCount">0</span> characters · <span id="wordCount">0</span> words</div>
+        <div class="wizard-footer" style="margin-top:10px">
+          <button class="btn btn-secondary" onclick="wizardBack()">← Edit sections</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+            <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()">
+              <span id="submitLabel">Submit for Evaluation</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Free-form mode -->
+    <div id="freeMode" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <label style="margin:0">Your Answer</label>
+        <button class="mic-btn mic-btn-large" id="mic-free" onclick="toggleVoice('free')">🎤 Dictate</button>
+      </div>
+      <textarea id="answerInput" placeholder="Structure your answer: Situation → Task → Action → Result. Include metrics and stakeholder impact." oninput="updateCharCount()"></textarea>
+      <div class="char-count"><span id="charCount2">0</span> characters · <span id="wordCount2">0</span> words</div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="submitBtnFree" onclick="submitAnswer()">
+          <span id="submitLabelFree">Submit for Evaluation</span>
+        </button>
+        <button class="btn btn-secondary" onclick="skipQuestion()">Skip</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- Feedback panel (shown after submit) -->
@@ -314,9 +485,18 @@ canvas{max-width:100%!important}
       <div id="fbFollowUpText" style="font-size:.9rem;line-height:1.5;color:var(--text)"></div>
     </div>
 
+    <!-- Model answer -->
+    <details class="model-answer-box" id="modelAnswerBox" style="display:none">
+      <summary>See what a strong answer looks like (using your background)</summary>
+      <div id="modelAnswerContent">
+        <div class="model-answer-loading"><span class="spinner-dark"></span> Generating model answer…</div>
+      </div>
+    </details>
+
     <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Next Question →</button>
       <button class="btn btn-secondary" onclick="toggleAnswerView()">View My Answer</button>
+      <button class="btn btn-secondary" id="modelAnswerBtn" onclick="showModelAnswer()" style="display:none">✨ See Model Answer</button>
     </div>
   </div>
 
@@ -421,7 +601,13 @@ const state = {
   questions: [], currentIdx: 0,
   answers: [], feedbacks: [], scores: [],
   timerInterval: null, timeLeft: 180,
-  conversationHistory: []
+  conversationHistory: [],
+  resumeText: '',
+  answerMode: 'wizard',
+  wizardStep: 0,
+  voiceSection: null,
+  recognition: null,
+  voiceSupported: false,
 };
 
 // ═══════════════════ SETUP ═══════════════════
@@ -452,6 +638,7 @@ function startInterview(){
   state.targetRole = document.getElementById('targetRole').value;
   state.numQ = parseInt(document.getElementById('numQ').value);
   state.timeLimit = parseInt(document.getElementById('timeLimit').value);
+  state.resumeText = document.getElementById('resumeInput').value.trim();
 
   if(!state.apiKey){showNotif('Please enter your Anthropic API key to continue.','error');return;}
   if(!state.apiKey.startsWith('sk-ant-')){showNotif('API key should start with sk-ant-','error');return;}
@@ -505,14 +692,30 @@ function renderQuestion(){
   document.getElementById('questionText').textContent = q.q;
   document.getElementById('tipContent').innerHTML = q.tips;
 
-  document.getElementById('answerInput').value = '';
-  document.getElementById('charCount').textContent = '0';
-  document.getElementById('wordCount').textContent = '0';
+  // Reset STAR wizard fields
+  ['situation','task','action','result'].forEach(k => {
+    document.getElementById(`ta-${k}`).value = '';
+    document.getElementById(`count-${k}`).textContent = '0 words';
+  });
+  if(document.getElementById('answerInput')) document.getElementById('answerInput').value = '';
+  if(document.getElementById('answerReview')) document.getElementById('answerReview').value = '';
+
   document.getElementById('feedbackCard').style.display = 'none';
   document.getElementById('answerPeek').style.display = 'none';
   document.getElementById('answerCard').style.display = 'block';
   document.getElementById('submitBtn').disabled = false;
-  document.getElementById('submitLabel').textContent = 'Submit Answer';
+  document.getElementById('submitLabel').textContent = 'Submit for Evaluation';
+  if(document.getElementById('submitBtnFree')) document.getElementById('submitBtnFree').disabled = false;
+  if(document.getElementById('submitLabelFree')) document.getElementById('submitLabelFree').textContent = 'Submit for Evaluation';
+
+  // Reset wizard to step 0
+  stopVoice();
+  goToWizardStep(0);
+  setAnswerMode('wizard');
+
+  // Hide example nudge, then fetch if resume present
+  document.getElementById('exampleNudgeCard').style.display = 'none';
+  if(state.resumeText) fetchExampleNudge(q.q);
 
   startTimer();
 }
@@ -538,23 +741,42 @@ function updateTimerDisplay(){
   el.className=state.timeLeft<=30?'danger':state.timeLeft<=60?'warn':'';
 }
 function autoSubmit(){
-  const ans = document.getElementById('answerInput').value.trim();
-  if(ans.length > 20) submitAnswer();
+  const ans = buildAnswer();
+  const words = ans.trim() ? ans.trim().split(/\s+/).length : 0;
+  if(words >= 10) submitAnswer();
 }
 
 function updateCharCount(){
-  const v = document.getElementById('answerInput').value;
-  document.getElementById('charCount').textContent = v.length;
-  document.getElementById('wordCount').textContent = v.trim() ? v.trim().split(/\s+/).length : 0;
+  // Update whichever count fields are visible
+  const review = document.getElementById('answerReview');
+  const free = document.getElementById('answerInput');
+  const v = state.answerMode === 'free' ? (free ? free.value : '') : (review ? review.value : '');
+  const wc = v.trim() ? v.trim().split(/\s+/).length : 0;
+  if(state.answerMode === 'free'){
+    if(document.getElementById('charCount2')) document.getElementById('charCount2').textContent = v.length;
+    if(document.getElementById('wordCount2')) document.getElementById('wordCount2').textContent = wc;
+  } else {
+    if(document.getElementById('charCount')) document.getElementById('charCount').textContent = v.length;
+    if(document.getElementById('wordCount')) document.getElementById('wordCount').textContent = wc;
+  }
 }
 
 async function submitAnswer(){
-  const ans = document.getElementById('answerInput').value.trim();
-  if(ans.length < 20){showNotif('Please write a more complete answer before submitting.','error');return;}
+  const ans = buildAnswer();
+  const words = ans.trim() ? ans.trim().split(/\s+/).length : 0;
+  if(words < 15){showNotif('Please write a more complete answer before submitting (at least 15 words).','error');return;}
 
   stopTimer();
-  document.getElementById('submitBtn').disabled = true;
-  document.getElementById('submitLabel').innerHTML = '<span class="spinner"></span> Evaluating...';
+  stopVoice();
+  // Disable both submit buttons
+  const btnW = document.getElementById('submitBtn');
+  const btnF = document.getElementById('submitBtnFree');
+  const lblW = document.getElementById('submitLabel');
+  const lblF = document.getElementById('submitLabelFree');
+  if(btnW) btnW.disabled = true;
+  if(btnF) btnF.disabled = true;
+  if(lblW) lblW.innerHTML = '<span class="spinner"></span> Evaluating...';
+  if(lblF) lblF.innerHTML = '<span class="spinner"></span> Evaluating...';
 
   const q = state.questions[state.currentIdx];
   state.answers.push(ans);
@@ -574,6 +796,7 @@ async function submitAnswer(){
 
 function skipQuestion(){
   stopTimer();
+  stopVoice();
   state.answers.push('[Skipped]');
   state.feedbacks.push(null);
   state.scores.push(0);
@@ -726,6 +949,16 @@ function renderFeedback(fb, q){
   // Next button label
   const isLast = state.currentIdx >= state.questions.length - 1;
   document.getElementById('nextBtn').textContent = isLast ? 'View Final Report →' : 'Next Question →';
+
+  // Show model answer button (always; hides if no API key but that can't happen here)
+  const maBtn = document.getElementById('modelAnswerBtn');
+  const maBox = document.getElementById('modelAnswerBox');
+  maBtn.style.display = 'inline-flex';
+  maBox.style.display = 'none';
+  maBox.removeAttribute('open');
+  document.getElementById('modelAnswerContent').innerHTML = '<div class="model-answer-loading"><span class="spinner-dark"></span> Generating model answer…</div>';
+  // Store current question on state for model answer fetch
+  state._currentQ = q;
 }
 
 function getGrade(score){
@@ -860,7 +1093,205 @@ function exportTranscript(){
 
 function restartInterview(){
   stopTimer();
+  stopVoice();
   showScreen('screen-setup');
+}
+
+// ═══════════════════ STAR WIZARD ═══════════════════
+const STAR_KEYS = ['situation','task','action','result'];
+
+function wizardNext(){
+  const step = state.wizardStep;
+  if(step === 0 && !document.getElementById('ta-situation').value.trim()){
+    showNotif('Please describe the Situation before continuing.','error'); return;
+  }
+  if(step === 2 && !document.getElementById('ta-action').value.trim()){
+    showNotif('Please describe the Actions you took before continuing.','error'); return;
+  }
+  stopVoice();
+  goToWizardStep(step + 1);
+}
+
+function wizardBack(){
+  stopVoice();
+  goToWizardStep(Math.max(0, state.wizardStep - 1));
+}
+
+function goToWizardStep(step){
+  document.querySelectorAll('.wizard-pane').forEach(p => p.classList.remove('active'));
+  state.wizardStep = step;
+  const paneId = step === 4 ? 'wpane-review' : `wpane-${step}`;
+  const pane = document.getElementById(paneId);
+  if(pane) pane.classList.add('active');
+  if(step === 4){
+    document.getElementById('answerReview').value = buildAnswer();
+    updateCharCount();
+  }
+  STAR_KEYS.forEach((_, i) => {
+    const dot = document.getElementById(`wstep-${i}`);
+    if(dot){
+      dot.classList.toggle('active', i === step);
+      dot.classList.toggle('done', i < step);
+    }
+  });
+}
+
+function buildAnswer(){
+  if(state.answerMode === 'free'){
+    const el = document.getElementById('answerInput');
+    return el ? el.value.trim() : '';
+  }
+  if(state.wizardStep === 4){
+    const el = document.getElementById('answerReview');
+    const val = el ? el.value.trim() : '';
+    // If review pane has content (user edited it), use it; otherwise build from STAR fields
+    if(val) return val;
+  }
+  return STAR_KEYS.map(k => {
+    const el = document.getElementById(`ta-${k}`);
+    const text = el ? el.value.trim() : '';
+    return text ? `${k.toUpperCase()}:\n${text}` : null;
+  }).filter(Boolean).join('\n\n');
+}
+
+function setAnswerMode(mode){
+  stopVoice();
+  state.answerMode = mode;
+  const tabBtn = document.getElementById('tabFree');
+  if(tabBtn) tabBtn.textContent = mode === 'free' ? '← Guided mode' : 'Free-form';
+  document.getElementById('wizardMode').style.display = mode === 'wizard' ? 'block' : 'none';
+  document.getElementById('freeMode').style.display   = mode === 'free'   ? 'block' : 'none';
+  if(mode === 'free'){
+    const built = buildAnswer();
+    if(built && document.getElementById('answerInput')) document.getElementById('answerInput').value = built;
+    updateCharCount();
+  }
+}
+
+function onStarInput(section){
+  const v = document.getElementById(`ta-${section}`).value;
+  const w = v.trim() ? v.trim().split(/\s+/).length : 0;
+  document.getElementById(`count-${section}`).textContent = `${w} word${w !== 1 ? 's' : ''}`;
+}
+
+// ═══════════════════ VOICE INPUT ═══════════════════
+function getOrCreateRecognition(){
+  if(state.recognition) return state.recognition;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) return null;
+  const r = new SpeechRecognition();
+  r.continuous = true;
+  r.interimResults = false;
+  r.lang = 'en-US';
+  r.onresult = e => {
+    const transcript = Array.from(e.results).slice(e.resultIndex).map(res => res[0].transcript).join('');
+    const section = state.voiceSection;
+    if(!section) return;
+    const ta = section === 'free' ? document.getElementById('answerInput') : document.getElementById(`ta-${section}`);
+    if(ta){ ta.value += (ta.value ? ' ' : '') + transcript; }
+    if(section !== 'free') onStarInput(section);
+    else updateCharCount();
+  };
+  r.onerror = () => stopVoice();
+  r.onend = () => { if(state.voiceSection) stopVoice(); };
+  state.recognition = r;
+  return r;
+}
+
+function toggleVoice(section){
+  if(state.voiceSection === section){ stopVoice(); return; }
+  stopVoice();
+  const r = getOrCreateRecognition();
+  if(!r){ showNotif('Voice input not supported in this browser. Try Chrome or Edge.','error'); return; }
+  state.voiceSection = section;
+  r.start();
+  document.getElementById('globalVoiceStatus').style.display = 'inline-flex';
+  const micId = section === 'free' ? 'mic-free' : `mic-${section}`;
+  const micBtn = document.getElementById(micId);
+  if(micBtn) micBtn.classList.add('active');
+}
+
+function stopVoice(){
+  if(state.recognition){
+    try{ state.recognition.stop(); } catch(_){}
+    state.recognition = null;
+  }
+  if(state.voiceSection){
+    const micId = state.voiceSection === 'free' ? 'mic-free' : `mic-${state.voiceSection}`;
+    const micBtn = document.getElementById(micId);
+    if(micBtn) micBtn.classList.remove('active');
+  }
+  state.voiceSection = null;
+  document.getElementById('globalVoiceStatus').style.display = 'none';
+}
+
+// ═══════════════════ AI FEATURES ═══════════════════
+async function callClaude(systemPrompt, userMsg, maxTokens){
+  const resp = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': state.apiKey,
+      'anthropic-version':'2023-06-01'
+    },
+    body: JSON.stringify({
+      model:'claude-haiku-4-5-20251001',
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages:[{role:'user',content:userMsg}]
+    })
+  });
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data.content[0].text.trim();
+}
+
+async function fetchExampleNudge(question){
+  if(!state.resumeText) return;
+  const nudgeCard = document.getElementById('exampleNudgeCard');
+  const nudgeText = document.getElementById('exampleNudgeText');
+  // Show a loading state briefly
+  nudgeText.textContent = 'Finding a relevant example from your background…';
+  nudgeCard.style.display = 'block';
+
+  const timer = setTimeout(() => {
+    // If still showing loading text after 6s, hide it
+    if(nudgeText.textContent.includes('Finding')) nudgeCard.style.display = 'none';
+  }, 6000);
+
+  try {
+    const sys = `You are a career coach. Given a resume and an interview question, identify 1-2 concrete experiences from the resume that would make a strong answer. Be specific: name the project/role/company and the relevant angle. Keep it to 2-3 short bullet points. Plain text only, no markdown headers.`;
+    const msg = `Interview question: ${question}\n\nResume:\n${state.resumeText.slice(0, 3000)}`;
+    const result = await callClaude(sys, msg, 200);
+    clearTimeout(timer);
+    nudgeText.textContent = result;
+    nudgeCard.style.display = 'block';
+  } catch(_){
+    clearTimeout(timer);
+    nudgeCard.style.display = 'none';
+  }
+}
+
+async function showModelAnswer(){
+  const maBox = document.getElementById('modelAnswerBox');
+  const maContent = document.getElementById('modelAnswerContent');
+  const maBtn = document.getElementById('modelAnswerBtn');
+
+  maBox.style.display = 'block';
+  maBox.setAttribute('open', '');
+  maBtn.style.display = 'none';
+  maContent.innerHTML = '<div class="model-answer-loading"><span class="spinner-dark"></span> Generating model answer…</div>';
+
+  const q = state._currentQ || state.questions[state.currentIdx];
+  const resumeSection = state.resumeText ? `\n\nCandidate's background (use to make the answer specific):\n${state.resumeText.slice(0, 3000)}` : '';
+
+  try {
+    const sys = `You are a top TPM candidate demonstrating an exemplary interview answer. Write a strong STAR-format answer to the given interview question for a ${state.targetRole} role at ${state.company}. Be specific, include metrics where plausible, and keep it to 200-280 words. Format it clearly with SITUATION, TASK, ACTION, RESULT labels.${resumeSection}`;
+    const result = await callClaude(sys, `Question: ${q.q}`, 600);
+    maContent.innerHTML = `<div class="model-answer-body">${result}</div>`;
+  } catch(err){
+    maContent.innerHTML = `<div class="model-answer-body" style="color:var(--danger)">Could not generate model answer: ${err.message}</div>`;
+  }
 }
 
 // ═══════════════════ UTILS ═══════════════════
@@ -879,6 +1310,14 @@ function showNotif(msg, type='info'){
   clearTimeout(notifTimeout);
   notifTimeout=setTimeout(()=>el.style.display='none',4000);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const supported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  state.voiceSupported = supported;
+  if(!supported){
+    document.querySelectorAll('.mic-btn').forEach(b => b.style.display = 'none');
+  }
+});
 </script>
 </body>
 </html>
