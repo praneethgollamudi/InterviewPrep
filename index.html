@@ -1308,15 +1308,30 @@ async function callClaude(systemPrompt, userMsg, maxTokens){
       'anthropic-version':'2023-06-01'
     },
     body: JSON.stringify({
-      model:'claude-haiku-4-5-20251001',
+      model:'claude-opus-4-8',
       max_tokens: maxTokens,
       system: systemPrompt,
       messages:[{role:'user',content:userMsg}]
     })
   });
-  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  if(!resp.ok){
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+  }
   const data = await resp.json();
   return data.content[0].text.trim();
+}
+
+function extractJsonArray(raw){
+  // Try direct parse first
+  try { return JSON.parse(raw); } catch(_){}
+  // Strip code fences
+  const stripped = raw.replace(/```json\s*/g,'').replace(/```\s*/g,'').trim();
+  try { return JSON.parse(stripped); } catch(_){}
+  // Extract first [...] block
+  const match = stripped.match(/\[[\s\S]*\]/);
+  if(match) return JSON.parse(match[0]);
+  throw new Error('No valid JSON array found');
 }
 
 async function fetchStoryOptions(question){
@@ -1326,39 +1341,42 @@ async function fetchStoryOptions(question){
   card.style.display = 'block';
   body.innerHTML = '<div class="story-loading"><span class="spinner-muted"></span> Finding relevant examples from your resume…</div>';
 
-  // Hide the wizard header while picker is shown
   document.getElementById('wizardFreeHeader').style.display = 'none';
   document.getElementById('wizardMode').style.display = 'none';
   document.getElementById('freeMode').style.display = 'none';
 
   try {
-    const sys = `You are a career coach. Given a resume and an interview question, identify 2-3 concrete experiences from the resume that could answer the question well. Return ONLY a JSON array with this exact structure, no other text:
-[
-  {"title": "Short 6-8 word title", "desc": "One sentence describing why this experience fits"},
-  {"title": "Short 6-8 word title", "desc": "One sentence describing why this experience fits"}
-]
-Be specific — reference actual roles, companies, or projects from the resume.`;
+    const sys = `You are a career coach. Given a resume and an interview question, identify 2-3 concrete experiences from the resume that could answer the question well. Return ONLY a JSON array, no other text, no markdown:
+[{"title":"Short 6-8 word title","desc":"One sentence on why this experience fits this question"},{"title":"Short 6-8 word title","desc":"One sentence on why this experience fits this question"}]
+Use actual company names, project names, or role titles from the resume. Be specific.`;
     const msg = `Interview question: ${question}\n\nResume:\n${state.resumeText.slice(0, 3000)}`;
-    const raw = await callClaude(sys, msg, 300);
-    const jsonStr = raw.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
-    const options = JSON.parse(jsonStr);
+    const raw = await callClaude(sys, msg, 400);
+    const options = extractJsonArray(raw);
+
+    if(!Array.isArray(options) || options.length === 0) throw new Error('Empty options');
 
     let html = '<div class="story-options">';
     options.forEach((opt, i) => {
+      const title = (opt.title||'').replace(/</g,'&lt;');
+      const desc  = (opt.desc||'').replace(/</g,'&lt;');
       html += `<button class="story-option" onclick="selectStory(${i})">
-        <div class="story-option-title">${opt.title}</div>
-        <div class="story-option-desc">${opt.desc}</div>
+        <div class="story-option-title">${title}</div>
+        <div class="story-option-desc">${desc}</div>
         <div class="story-option-cta">Use this experience →</div>
       </button>`;
     });
     html += '</div>';
-    html += `<span class="story-picker-skip" onclick="switchToWizard()">Write from scratch instead</span>`;
+    html += `<div style="margin-top:12px"><span class="story-picker-skip" onclick="switchToWizard()">Write from scratch instead</span></div>`;
     body.innerHTML = html;
-    // Store options for use in selectStory
     state._storyOptions = options;
-  } catch(_){
-    // Fallback to wizard silently
-    switchToWizard();
+  } catch(err){
+    body.innerHTML = `<div style="font-size:.875rem;color:var(--danger);margin-bottom:10px">
+      Could not load suggestions (${err.message}).
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="fetchStoryOptions(${JSON.stringify(question)})">Retry</button>
+      <span class="story-picker-skip" style="line-height:2.2" onclick="switchToWizard()">Write from scratch instead</span>
+    </div>`;
   }
 }
 
